@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eclipses Solares</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #000; overflow: hidden; color: white; }
+        #container { width: 100vw; height: 100vh; }
+        #controls {
+            position: fixed; top: 70px; left: 20px; background: rgba(20, 20, 60, 0.9);
+            padding: 20px; border-radius: 15px; border: 1px solid rgba(100, 100, 180, 0.3);
+            max-width: 280px; z-index: 10; max-height: calc(100vh - 100px); overflow-y: auto;
+        }
+        #controls h3 { margin-bottom: 15px; color: #ffd700; font-size: 1.1rem; }
+        .control-group { margin-bottom: 12px; }
+        .control-group label { display: block; margin-bottom: 5px; font-size: 0.9rem; color: #a0a0c0; }
+        .control-group input[type="range"] { width: 100%; cursor: pointer; }
+        .btn-row { display: flex; gap: 10px; margin-top: 15px; }
+        .btn {
+            flex: 1; padding: 10px; background: rgba(60, 60, 120, 0.8);
+            border: 1px solid rgba(100, 100, 180, 0.5); color: white;
+            border-radius: 8px; cursor: pointer; font-size: 0.85rem; transition: all 0.3s;
+        }
+        .btn:hover { background: rgba(80, 80, 150, 0.9); }
+        .btn.active { background: rgba(100, 100, 200, 0.9); }
+        #info-panel {
+            position: fixed; top: 70px; right: 20px;
+            background: rgba(20, 20, 60, 0.95); padding: 22px;
+            border-radius: 15px; border: 1px solid rgba(100, 100, 180, 0.3);
+            max-width: 320px; z-index: 10; max-height: calc(100vh - 100px); overflow-y: auto;
+        }
+        #info-panel h3 { color: #ffd700; margin-bottom: 10px; font-size: 1.2rem; }
+        #info-panel p { font-size: 0.88rem; color: #c0c0e0; line-height: 1.5; }
+        .eclipse-status {
+            margin-top: 14px; padding: 14px;
+            background: rgba(40, 40, 80, 0.5);
+            border-radius: 10px; text-align: center;
+        }
+        .eclipse-status.idle { border-left: 3px solid #888; }
+        .eclipse-status.partial { border-left: 3px solid #ff8c42; }
+        .eclipse-status.total { border-left: 3px solid #ffd700; }
+        .eclipse-status.annular { border-left: 3px solid #ff5252; }
+        .eclipse-status .eclipse-icon { font-size: 2.5rem; margin-bottom: 6px; }
+        .eclipse-status .eclipse-type { font-size: 1.1rem; font-weight: bold; margin-bottom: 4px; }
+        .eclipse-status .eclipse-detail { font-size: 0.85rem; color: #c0c0e0; }
+        #instructions {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            background: rgba(20, 20, 60, 0.8); padding: 10px 20px; border-radius: 10px;
+            font-size: 0.85rem; color: #a0a0c0; z-index: 10;
+        }
+        .view-selector { width: 100%; padding: 8px; background: rgba(40, 40, 80, 0.8); color: white; border: 1px solid rgba(100, 100, 180, 0.5); border-radius: 8px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div id="container"></div>
+    <div id="controls">
+        <h3>🌑 Controles <button id="back-btn" style="float:right;background:transparent;border:1px solid #888;color:#fff;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:0.8rem;">← Volver</button></h3>
+        <div class="control-group">
+            <label>Velocidad orbital</label>
+            <input type="range" id="speed-slider" min="0" max="300" value="20">
+            <div style="text-align: right; font-size: 0.8rem; color: #888;">x<span id="speed-value">20</span></div>
+        </div>
+        <div class="control-group">
+            <label>Vista</label>
+            <select id="view-select" class="view-selector">
+                <option value="perspective">Vista perspectiva</option>
+                <option value="top">Vista superior</option>
+                <option value="side">Vista lateral</option>
+                <option value="earth-surface">Superficie terrestre</option>
+            </select>
+        </div>
+        <div class="btn-row">
+            <button class="btn" id="btn-pause">⏸️ Pausar</button>
+            <button class="btn" id="btn-eclipse">🌑 Forzar alineación</button>
+        </div>
+        <div class="btn-row">
+            <button class="btn active" id="btn-shadow">Sombras</button>
+            <button class="btn" id="btn-labels">Etiquetas</button>
+        </div>
+        <div class="btn-row">
+            <button class="btn active" id="btn-inclination">Inclinación 5°</button>
+        </div>
+    </div>
+    <div id="info-panel">
+        <h3>¿Por qué no hay eclipse cada mes?</h3>
+        <p>La órbita de la Luna está inclinada ~5° respecto a la eclíptica (el plano orbital terrestre). Por eso, en luna nueva la Luna suele pasar por encima o por debajo del Sol desde nuestra perspectiva. Solo cuando el paso por el nodo orbital coincide con la fase adecuada se produce un eclipse.</p>
+        <div class="eclipse-status idle" id="eclipse-status">
+            <div class="eclipse-icon" id="eclipse-icon">☀️</div>
+            <div class="eclipse-type" id="eclipse-type">Sin eclipse</div>
+            <div class="eclipse-detail" id="eclipse-detail">La Luna no está alineada con el Sol y la Tierra.</div>
+        </div>
+    </div>
+    <div id="instructions">🖱️ Arrastra para rotar • Scroll para zoom</div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="../utils/textures.js"></script>
+    <script src="../utils/space.js"></script>
+    <script>
+        const SUN_RADIUS = 25;
+        const EARTH_ORBIT = 250;
+        const EARTH_RADIUS = 8;
+        const MOON_DISTANCE = 22;
+        const MOON_RADIUS = 2.2;
+        const MOON_INCLINATION = 5 * Math.PI / 180;
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        document.getElementById('container').appendChild(renderer.domElement);
+
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 3000);
+        const camControls = attachCameraControls(renderer, camera, new THREE.Vector3(0, 0, 0), {
+            minDist: 40, maxDist: 2000, initialDist: 500, phi: 0.5
+        });
+
+        scene.add(new THREE.AmbientLight(0x222233, 0.4));
+        const sunLight = new THREE.PointLight(0xffffff, 2.0, 1500);
+        sunLight.position.set(0, 0, 0);
+        scene.add(sunLight);
+
+        scene.add(createStarfield(scene, 3000, 3000));
+
+        // Sol con textura y corona
+        const sun = new THREE.Mesh(
+            new THREE.SphereGeometry(SUN_RADIUS, 48, 48),
+            new THREE.MeshBasicMaterial({ map: generatePlanetTexture('sun') })
+        );
+        scene.add(sun);
+
+        // Corona solar: halo difuso alrededor del Sol
+        const coronaGeo = new THREE.SphereGeometry(SUN_RADIUS * 1.3, 32, 32);
+        const coronaMat = new THREE.MeshBasicMaterial({
+            color: 0xffeebb, transparent: true, opacity: 0.15, side: THREE.BackSide
+        });
+        const corona = new THREE.Mesh(coronaGeo, coronaMat);
+        sun.add(corona);
+
+        // Tierra
+        const earthGroup = new THREE.Group();
+        scene.add(earthGroup);
+        const earth = new THREE.Mesh(
+            new THREE.SphereGeometry(EARTH_RADIUS, 48, 48),
+            new THREE.MeshStandardMaterial({ map: generatePlanetTexture('earth'), roughness: 0.9 })
+        );
+        earthGroup.add(earth);
+        const earthAtmosphere = new THREE.Mesh(
+            new THREE.SphereGeometry(EARTH_RADIUS * 1.04, 32, 32),
+            new THREE.MeshBasicMaterial({ color: 0x88ccff, transparent: true, opacity: 0.15, side: THREE.BackSide })
+        );
+        earthGroup.add(earthAtmosphere);
+
+        // Órbita de la Tierra
+        const earthOrbit = createOrbitLine(EARTH_ORBIT, 0, 0x445566, 0.4);
+        scene.add(earthOrbit);
+
+        // Luna: la orbita está inclinada respecto al plano Tierra-Sol
+        // Creamos un grupo "moonOrbitGroup" para la inclinación
+        const moonOrbitGroup = new THREE.Group();
+        moonOrbitGroup.rotation.x = MOON_INCLINATION;
+        earthGroup.add(moonOrbitGroup);
+
+        const moon = new THREE.Mesh(
+            new THREE.SphereGeometry(MOON_RADIUS, 32, 32),
+            new THREE.MeshStandardMaterial({ map: generatePlanetTexture('moon'), roughness: 0.95 })
+        );
+        moonOrbitGroup.add(moon);
+
+        const moonOrbitLine = createOrbitLine(MOON_DISTANCE, 0, 0x445566, 0.3);
+        moonOrbitGroup.add(moonOrbitLine);
+
+        // Cálculos de umbra/penumbra: dependen de la geometría Sol-Luna-Tierra
+        // Umbra: cono donde la Luna bloquea completamente el Sol
+        //   L_umbra = R_moon * (D_sun - D_moon) / (R_sun - R_moon)
+        //   donde D_sun = distancia Sol-Luna, D_moon = distancia Luna-Tierra
+        //   Si L_umbra > D_moon, la umbra llega a la Tierra (eclipse total)
+        //   Si L_umbra < D_moon, no llega (eclipse anular)
+        const SUN_MOON_DIST = EARTH_ORBIT - MOON_DISTANCE;
+        const UMBRA_LENGTH = MOON_RADIUS * SUN_MOON_DIST / (SUN_RADIUS - MOON_RADIUS);
+        // En nuestra escala, la umbra se alarga exactamente hasta la Tierra
+        // Para que el eclipse sea total, ajustamos la Luna un poco más cerca
+        const UMBRA_REACHES_EARTH = UMBRA_LENGTH >= MOON_DISTANCE;
+
+        // Grupo para el cono de sombra (lo colocaremos en la escena y actualizaremos su posición/orientación)
+        const shadowGroup = new THREE.Group();
+        scene.add(shadowGroup);
+
+        // Cono de umbra (orientado en cada frame)
+        // Lo hacemos más ancho que en la realidad para que sea visible
+        const umbraRadius = MOON_RADIUS * 1.6;
+        const umbraGeo = new THREE.ConeGeometry(umbraRadius, UMBRA_LENGTH, 32, 1, true);
+        const umbraMat = new THREE.MeshBasicMaterial({
+            color: 0x000000, transparent: true, opacity: 0.75, side: THREE.DoubleSide
+        });
+        const umbra = new THREE.Mesh(umbraGeo, umbraMat);
+        // El cono de Three.js tiene el ápice en +Y y la base en -Y
+        // Para tener la base en el origen y el ápice en +Z, rotamos -PI/2 alrededor de X
+        // y trasladamos en +Z la mitad de la longitud
+        umbra.rotation.x = -Math.PI / 2;
+        umbra.position.z = UMBRA_LENGTH / 2;
+        shadowGroup.add(umbra);
+
+        // Penumbra: cono más ancho (no llega a cerrarse)
+        const penumbraLength = UMBRA_LENGTH * 1.4;
+        const penumbraRadius = MOON_RADIUS * 3.5;
+        const penumbraGeo = new THREE.ConeGeometry(penumbraRadius, penumbraLength, 32, 1, true);
+        const penumbraMat = new THREE.MeshBasicMaterial({
+            color: 0x4444aa, transparent: true, opacity: 0.25, side: THREE.DoubleSide
+        });
+        const penumbra = new THREE.Mesh(penumbraGeo, penumbraMat);
+        penumbra.rotation.x = -Math.PI / 2;
+        penumbra.position.z = penumbraLength / 2;
+        shadowGroup.add(penumbra);
+
+        // Indicador de dirección: línea amarilla brillante desde la Luna hacia la Tierra
+        const dirIndicatorGeo = new THREE.BufferGeometry();
+        const dirIndicatorMat = new THREE.LineBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 0.9 });
+        const dirIndicator = new THREE.Line(dirIndicatorGeo, dirIndicatorMat);
+        shadowGroup.add(dirIndicator);
+
+        // Flecha: cono pequeño al final de la línea indicadora
+        const arrowGeo = new THREE.ConeGeometry(0.6, 2, 8);
+        const arrowMat = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
+        const arrowHead = new THREE.Mesh(arrowGeo, arrowMat);
+        // Por defecto el cono apunta en +Y. Lo rotamos para que apunte en +Z
+        arrowHead.rotation.x = Math.PI / 2;
+        shadowGroup.add(arrowHead);
+
+        // Etiquetas
+        const labels = {};
+        function makeLabel(text, color) {
+            const s = createTextSprite(text, color, 12);
+            return s;
+        }
+        labels.sun = makeLabel('Sol', '#ffd700');
+        labels.sun.position.set(0, SUN_RADIUS + 12, 0);
+        sun.add(labels.sun);
+        labels.earth = makeLabel('Tierra', '#88ccff');
+        labels.earth.position.set(0, EARTH_RADIUS + 6, 0);
+        earthGroup.add(labels.earth);
+        labels.moon = makeLabel('Luna', '#dddddd');
+        labels.moon.position.set(0, MOON_RADIUS + 3, 0);
+        moonOrbitGroup.add(labels.moon);
+        Object.values(labels).forEach(l => l.visible = false);
+
+        // Punto en la superficie terrestre para ver el eclipse
+        const surfacePoint = new THREE.Mesh(
+            new THREE.SphereGeometry(0.5, 12, 12),
+            new THREE.MeshBasicMaterial({ color: 0xff3333 })
+        );
+        surfacePoint.position.set(EARTH_RADIUS * 0.95, 0, 0);
+        earthGroup.add(surfacePoint);
+
+        // Vista desde la superficie durante el eclipse
+        const sunCorona = new THREE.Mesh(
+            new THREE.SphereGeometry(SUN_RADIUS * 1.05, 32, 32),
+            new THREE.MeshBasicMaterial({ color: 0xffffee, transparent: true, opacity: 0.3, side: THREE.BackSide })
+        );
+        sun.add(sunCorona);
+        sunCorona.visible = false;
+
+        let paused = false;
+        let showShadow = true;
+        let showLabels = false;
+        let showInclination = true;
+        let speedMultiplier = 20;
+        let earthAngle = 0;
+        let moonAngle = 0;
+        let forceAlignment = false;
+
+        // Función para clasificar el tipo de eclipse según la geometría
+        function classifyEclipse() {
+            // Posición de la Luna en mundo
+            const moonWorld = new THREE.Vector3();
+            moon.getWorldPosition(moonWorld);
+
+            // Distancia angular Sol-Luna vista desde la Tierra
+            const earthToSun = sun.position.clone().sub(earthGroup.position).normalize();
+            const earthToMoon = moonWorld.clone().sub(earthGroup.position).normalize();
+            const dot = earthToSun.dot(earthToMoon);
+            const angleDeg = Math.acos(Math.max(-1, Math.min(1, dot))) * 180 / Math.PI;
+
+            // Tamaño angular de la Luna desde la Tierra (en grados)
+            const moonAngularSize = Math.atan(MOON_RADIUS / moonWorld.distanceTo(earthGroup.position)) * 180 / Math.PI * 2;
+            // Tamaño angular del Sol desde la Tierra
+            const sunAngularSize = Math.atan(SUN_RADIUS / earthGroup.position.distanceTo(sun.position)) * 180 / Math.PI * 2;
+
+            // Si la Luna está fuera del disco solar, no hay eclipse
+            if (angleDeg > (moonAngularSize + sunAngularSize) / 2 + 1) {
+                return { type: 'none', icon: '☀️', name: 'Sin eclipse', detail: 'La Luna está fuera de la línea Sol-Tierra (por eso casi nunca hay eclipse cada mes).' };
+            }
+
+            // Si el centro de la Luna está sobre el Sol, puede ser total o anular
+            if (angleDeg < sunAngularSize * 0.5) {
+                if (UMBRA_REACHES_EARTH) {
+                    return { type: 'total', icon: '🌑', name: 'Eclipse total', detail: 'La Luna cubre completamente el Sol desde una franja de la Tierra. La umbra lunar llega al suelo.' };
+                } else {
+                    return { type: 'annular', icon: '🔴', name: 'Eclipse anular', detail: 'La Luna está más lejos y se ve más pequeña que el Sol: queda un anillo brillante ("anillo de fuego").' };
+                }
+            }
+
+            return { type: 'partial', icon: '🌗', name: 'Eclipse parcial', detail: 'La Luna solo cubre una parte del disco solar. Visible desde una región más amplia.' };
+        }
+
+        document.getElementById('speed-slider').addEventListener('input', e => {
+            speedMultiplier = parseInt(e.target.value);
+            document.getElementById('speed-value').textContent = speedMultiplier;
+        });
+
+        document.getElementById('btn-pause').addEventListener('click', () => {
+            paused = !paused;
+            document.getElementById('btn-pause').textContent = paused ? '▶️ Reanudar' : '⏸️ Pausar';
+            document.getElementById('btn-pause').classList.toggle('active', paused);
+        });
+
+        document.getElementById('btn-eclipse').addEventListener('click', () => {
+            forceAlignment = !forceAlignment;
+            document.getElementById('btn-eclipse').classList.toggle('active', forceAlignment);
+        });
+
+        document.getElementById('btn-shadow').addEventListener('click', () => {
+            showShadow = !showShadow;
+            umbra.visible = showShadow;
+            penumbra.visible = showShadow;
+            document.getElementById('btn-shadow').classList.toggle('active', showShadow);
+        });
+
+        document.getElementById('btn-labels').addEventListener('click', () => {
+            showLabels = !showLabels;
+            Object.values(labels).forEach(l => l.visible = showLabels);
+            document.getElementById('btn-labels').classList.toggle('active', showLabels);
+        });
+
+        document.getElementById('btn-inclination').addEventListener('click', () => {
+            showInclination = !showInclination;
+            moonOrbitGroup.rotation.x = showInclination ? MOON_INCLINATION : 0;
+            document.getElementById('btn-inclination').classList.toggle('active', showInclination);
+        });
+
+        document.getElementById('view-select').addEventListener('change', e => {
+            camControls.setManual(false);
+            const view = e.target.value;
+            if (view === 'top') {
+                camera.position.set(0, 600, 0);
+                camera.lookAt(0, 0, 0);
+            } else if (view === 'side') {
+                camera.position.set(EARTH_ORBIT * 1.2, 50, 0);
+                camera.lookAt(0, 0, 0);
+            } else if (view === 'earth-surface') {
+                camControls.setManual(false);
+                // Posición de la superficie terrestre orientada hacia la Luna
+                const moonWorld = new THREE.Vector3();
+                moon.getWorldPosition(moonWorld);
+                const dir = moonWorld.clone().sub(earthGroup.position).normalize();
+                camera.position.copy(earthGroup.position).addScaledVector(dir, EARTH_RADIUS * 1.5);
+                camera.lookAt(moonWorld);
+            } else {
+                camControls.setManual(true);
+            }
+        });
+
+        function updateEclipseStatus() {
+            const status = classifyEclipse();
+            const statusEl = document.getElementById('eclipse-status');
+            statusEl.className = 'eclipse-status ' + status.type;
+            document.getElementById('eclipse-icon').textContent = status.icon;
+            document.getElementById('eclipse-type').textContent = status.name;
+            document.getElementById('eclipse-detail').textContent = status.detail;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (!paused) {
+                earthAngle += 0.0001 * speedMultiplier;
+                if (forceAlignment) {
+                    moonAngle = earthAngle + Math.PI;
+                } else {
+                    moonAngle += 0.0005 * speedMultiplier;
+                }
+            }
+
+            earthGroup.position.x = Math.cos(earthAngle) * EARTH_ORBIT;
+            earthGroup.position.z = Math.sin(earthAngle) * EARTH_ORBIT;
+
+            // Si está forzada la alineación, posicionar la Luna entre Sol y Tierra
+            if (forceAlignment) {
+                const sunToEarth = new THREE.Vector3().subVectors(earthGroup.position, sun.position).normalize();
+                // Posición objetivo en mundo: entre Sol y Tierra, a MOON_DISTANCE de la Tierra
+                const targetWorld = earthGroup.position.clone().addScaledVector(sunToEarth, -MOON_DISTANCE);
+                // Convertir al frame de moonOrbitGroup:
+                //   1. Restar earthGroup.position (frame de earthGroup)
+                //   2. Aplicar rotación inversa de MOON_INCLINATION alrededor de X (frame de moonOrbitGroup)
+                const localInEarth = targetWorld.clone().sub(earthGroup.position);
+                const localInOrbit = localInEarth.clone();
+                localInOrbit.applyAxisAngle(new THREE.Vector3(1, 0, 0), -MOON_INCLINATION);
+                moon.position.copy(localInOrbit);
+            } else {
+                // Movimiento normal en órbita inclinada
+                moon.position.x = Math.cos(moonAngle) * MOON_DISTANCE;
+                moon.position.z = Math.sin(moonAngle) * MOON_DISTANCE;
+                moon.position.y = 0;
+            }
+
+            // Rotación diaria
+            earth.rotation.y += 0.005;
+            moon.rotation.y += 0.01;
+
+            // Posicionar y orientar el cono de sombra
+            // La sombra va desde la Luna, en dirección opuesta al Sol (hacia la Tierra)
+            const moonWorld = new THREE.Vector3();
+            moon.getWorldPosition(moonWorld);
+            shadowGroup.position.copy(moonWorld);
+            // Para que el cono (ápice en +Z) apunte hacia la Tierra, hacemos lookAt al Sol
+            // (así -Z queda hacia el Sol, +Z queda hacia la Tierra)
+            shadowGroup.lookAt(sun.position);
+
+            // Indicador de dirección: línea desde la Luna hacia la Tierra
+            const indicatorEnd = new THREE.Vector3(0, 0, UMBRA_LENGTH * 1.1);
+            dirIndicator.geometry.setFromPoints([new THREE.Vector3(0, 0, 0), indicatorEnd]);
+            // Flecha al final de la línea
+            arrowHead.position.set(0, 0, UMBRA_LENGTH * 1.1 + 1);
+
+            // Actualizar vista si es "superficie terrestre"
+            const view = document.getElementById('view-select').value;
+            if (view === 'earth-surface') {
+                moon.getWorldPosition(moonWorld);
+                const dir = moonWorld.clone().sub(earthGroup.position).normalize();
+                camera.position.copy(earthGroup.position).addScaledVector(dir, EARTH_RADIUS * 1.5);
+                camera.lookAt(moonWorld);
+            }
+
+            updateEclipseStatus();
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        updateEclipseStatus();
+        animate();
+        setupBackButton('back-btn');
+    </script>
+</body>
+</html>

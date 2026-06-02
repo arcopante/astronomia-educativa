@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Astronomía Educativa</title>
+    <link rel="stylesheet" href="static/css/styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+    <div id="starfield"></div>
+    <div id="content">
+        <header>
+            <h1>🌌 Astronomía Educativa</h1>
+            <p class="subtitle">Explora el cosmos desde tu navegador</p>
+        </header>
+
+        <main>
+            <div class="app-grid">
+                <div class="app-card" onclick="loadApp('sistema-solar')">
+                    <div class="card-icon">☀️</div>
+                    <h2>Sistema Solar</h2>
+                    <p>Explora planetas, lunas y órbitas con velocidades reales</p>
+                    <span class="arrow">→</span>
+                </div>
+
+                <div class="app-card" onclick="loadApp('eclipses')">
+                    <div class="card-icon">🌑</div>
+                    <h2>Eclipses Solares</h2>
+                    <p>Observa cómo se producen los eclipses desde el espacio</p>
+                    <span class="arrow">→</span>
+                </div>
+
+                <div class="app-card" onclick="loadApp('estaciones')">
+                    <div class="card-icon">🌍</div>
+                    <h2>Cambio de Estaciones</h2>
+                    <p>Descubre cómo la inclinación axial crea las estaciones</p>
+                    <span class="arrow">→</span>
+                </div>
+
+                <div class="app-card" onclick="loadApp('mareas')">
+                    <div class="card-icon">🌊</div>
+                    <h2>Sistema de Mareas</h2>
+                    <p>Comprende la influencia gravitatoria lunar</p>
+                    <span class="arrow">→</span>
+                </div>
+            </div>
+        </main>
+
+        <div id="app-container" class="hidden">
+            <button id="back-btn" onclick="goBack()">← Volver</button>
+            <iframe id="app-frame" src=""></iframe>
+        </div>
+
+        <footer>
+            <p>Herramienta educativa para el aprendizaje de la astronomía</p>
+        </footer>
+    </div>
+
+    <script src="static/js/main.js"></script>
+</body>
+</html>

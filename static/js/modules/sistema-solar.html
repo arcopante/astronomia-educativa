@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema Solar</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #000; overflow: hidden; color: white; }
+        #container { width: 100vw; height: 100vh; }
+        #controls {
+            position: fixed; top: 70px; left: 20px; background: rgba(20, 20, 60, 0.9);
+            padding: 20px; border-radius: 15px; border: 1px solid rgba(100, 100, 180, 0.3);
+            max-width: 280px; z-index: 10; max-height: calc(100vh - 100px); overflow-y: auto;
+        }
+        #controls h3 { margin-bottom: 15px; color: #ffd700; font-size: 1.1rem; }
+        .control-group { margin-bottom: 15px; }
+        .control-group label { display: block; margin-bottom: 5px; font-size: 0.9rem; color: #a0a0c0; }
+        .control-group input[type="range"] { width: 100%; cursor: pointer; }
+        .speed-value { text-align: right; font-size: 0.8rem; color: #888; }
+        .btn-row { display: flex; gap: 10px; margin-top: 15px; }
+        .btn {
+            flex: 1; padding: 10px; background: rgba(60, 60, 120, 0.8);
+            border: 1px solid rgba(100, 100, 180, 0.5); color: white;
+            border-radius: 8px; cursor: pointer; font-size: 0.85rem; transition: all 0.3s;
+        }
+        .btn:hover { background: rgba(80, 80, 150, 0.9); }
+        .btn.active { background: rgba(100, 100, 200, 0.9); }
+        .planet-select {
+            width: 100%; padding: 8px; background: rgba(40, 40, 80, 0.8); color: white;
+            border: 1px solid rgba(100, 100, 180, 0.5); border-radius: 8px; cursor: pointer;
+        }
+        #planet-info {
+            position: fixed; top: 70px; right: 20px; background: rgba(20, 20, 60, 0.95);
+            padding: 20px; border-radius: 15px; border: 1px solid rgba(100, 100, 180, 0.3);
+            max-width: 350px; z-index: 10; display: none; max-height: calc(100vh - 100px); overflow-y: auto;
+        }
+        #planet-info h3 { color: #ffd700; margin-bottom: 10px; font-size: 1.3rem; }
+        #planet-info .planet-icon { font-size: 2.5rem; margin-bottom: 10px; }
+        #planet-info .data-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 15px 0; }
+        #planet-info .data-item { background: rgba(40, 40, 80, 0.5); padding: 8px 10px; border-radius: 8px; }
+        #planet-info .data-label { font-size: 0.7rem; color: #888; text-transform: uppercase; }
+        #planet-info .data-value { font-size: 0.95rem; color: #fff; font-weight: 500; }
+        #planet-info .info-text {
+            font-size: 0.9rem; color: #c0c0e0; line-height: 1.5; margin-top: 10px;
+            padding-top: 10px; border-top: 1px solid rgba(100, 100, 180, 0.3);
+        }
+        #planet-info .moon-list { margin-top: 10px; font-size: 0.85rem; color: #a0a0c0; }
+        #instructions {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            background: rgba(20, 20, 60, 0.8); padding: 10px 20px; border-radius: 10px;
+            font-size: 0.85rem; color: #a0a0c0; z-index: 10;
+        }
+    </style>
+</head>
+<body>
+    <div id="container"></div>
+        <div id="controls">
+            <h3>☀️ Controles <button id="back-btn" style="float:right;background:transparent;border:1px solid #888;color:#fff;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:0.8rem;">← Volver</button></h3>
+        <div class="control-group">
+            <label>Velocidad orbital</label>
+            <input type="range" id="speed-slider" min="0" max="200" value="50">
+            <div class="speed-value">x<span id="speed-value">50</span></div>
+        </div>
+        <div class="btn-row">
+            <button class="btn" id="btn-pause">⏸️ Pausar</button>
+            <button class="btn" id="btn-reset">🔄 Reset</button>
+        </div>
+        <div class="btn-row">
+            <button class="btn active" id="btn-orbits">Órbitas</button>
+            <button class="btn" id="btn-labels">Etiquetas</button>
+        </div>
+        <div class="control-group" style="margin-top: 15px;">
+            <label>Ir a planeta</label>
+            <select id="planet-select" class="planet-select">
+                <option value="">Vista general</option>
+                <option value="sun">Sol</option>
+                <option value="mercury">Mercurio</option>
+                <option value="venus">Venus</option>
+                <option value="earth">Tierra</option>
+                <option value="mars">Marte</option>
+                <option value="jupiter">Júpiter</option>
+                <option value="saturn">Saturno</option>
+                <option value="uranus">Urano</option>
+                <option value="neptune">Neptuno</option>
+            </select>
+        </div>
+    </div>
+    <div id="planet-info"></div>
+    <div id="instructions">🖱️ Arrastra para rotar • Scroll para zoom</div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="../utils/textures.js"></script>
+    <script src="../utils/space.js"></script>
+    <script>
+        // Tamaños proporcionales reales basados en diámetro (Tierra = 10 unidades)
+        const planetsData = {
+            sun: {
+                name: 'Sol', icon: '☀️', radius: 25, color: 0xffcc00, orbitRadius: 0, speed: 0,
+                diameter: '1,392,700 km', mass: '1.989 × 10³⁰ kg', gravity: '274 m/s²',
+                dayLength: '25-35 días (rotación diferencial)', moons: [],
+                info: 'El Sol contiene el 99,86% de la masa total del sistema solar. Su núcleo alcanza los 15 millones de grados Celsius, donde la fusión nuclear convierte hidrógeno en helio.'
+            },
+            mercury: {
+                name: 'Mercurio', icon: '☿️', radius: 3.8, color: 0x8c8c8c, orbitRadius: 39, speed: 4.15,
+                inclination: 7.0, diameter: '4,879 km', mass: '3.30 × 10²³ kg', gravity: '3.7 m/s²',
+                dayLength: '58.6 días terrestres', yearLength: '88 días', tempMin: '-180 °C', tempMax: '430 °C',
+                moons: [],
+                info: 'El planeta más cercano al Sol y el más pequeño. Su día dura más de la mitad de su año, y sus temperaturas oscilan entre extremos brutales.'
+            },
+            venus: {
+                name: 'Venus', icon: '♀️', radius: 9.5, color: 0xe6c87a, orbitRadius: 72, speed: 1.62,
+                inclination: 3.4, diameter: '12,104 km', mass: '4.87 × 10²⁴ kg', gravity: '8.87 m/s²',
+                dayLength: '243 días (retrógrado)', yearLength: '225 días', tempMin: '462 °C', tempMax: '462 °C',
+                moons: [],
+                info: 'El planeta más caliente del sistema solar por su efecto invernadero descontrolado. Su rotación es retrógrada: gira al revés que la Tierra.'
+            },
+            earth: {
+                name: 'Tierra', icon: '🌍', radius: 10, color: 0x4a90d9, orbitRadius: 100, speed: 1.0,
+                inclination: 0, diameter: '12,742 km', mass: '5.97 × 10²⁴ kg', gravity: '9.81 m/s²',
+                dayLength: '24 horas', yearLength: '365.25 días', tempMin: '-89 °C', tempMax: '58 °C',
+                moons: [{ name: 'Luna', radius: 2.7, color: 0xcccccc, orbitRadius: 22, orbitSpeed: 0.05, inclination: 5.1 }],
+                info: 'El único planeta conocido con vida. Su atmósfera rica en nitrógeno y oxígeno, combinada con agua líquida, lo hace único en el sistema solar.'
+            },
+            mars: {
+                name: 'Marte', icon: '♂️', radius: 5.3, color: 0xc1440e, orbitRadius: 152, speed: 0.53,
+                inclination: 1.8, diameter: '6,779 km', mass: '6.42 × 10²³ kg', gravity: '3.71 m/s²',
+                dayLength: '24h 37min', yearLength: '687 días', tempMin: '-143 °C', tempMax: '35 °C',
+                moons: [
+                    { name: 'Fobos', radius: 0.4, color: 0x8a7a6a, orbitRadius: 8, orbitSpeed: 0.1, inclination: 1.1 },
+                    { name: 'Deimos', radius: 0.3, color: 0x7a6a5a, orbitRadius: 14, orbitSpeed: 0.04, inclination: 1.8 }
+                ],
+                info: 'El planeta rojo, llamado así por el óxido de hierro de su superficie. Tiene los volcanes más grandes del sistema solar, incluido el Olympus Mons.'
+            },
+            jupiter: {
+                name: 'Júpiter', icon: '♃', radius: 110, color: 0xd4a574, orbitRadius: 520, speed: 0.084,
+                inclination: 1.3, diameter: '139,820 km', mass: '1.90 × 10²⁷ kg', gravity: '24.79 m/s²',
+                dayLength: '9h 56min', yearLength: '11.86 años', tempMin: '-145 °C', tempMax: '-108 °C',
+                moons: [
+                    { name: 'Io', radius: 1.2, color: 0xe6c87a, orbitRadius: 30, orbitSpeed: 0.06, inclination: 0.04 },
+                    { name: 'Europa', radius: 1.0, color: 0xc8c8d4, orbitRadius: 40, orbitSpeed: 0.04, inclination: 0.47 },
+                    { name: 'Ganímedes', radius: 1.7, color: 0x9a9080, orbitRadius: 55, orbitSpeed: 0.025, inclination: 0.21 },
+                    { name: 'Calisto', radius: 1.6, color: 0x6a6050, orbitRadius: 75, orbitSpeed: 0.018, inclination: 0.51 }
+                ],
+                info: 'El planeta más grande del sistema solar, con una masa mayor que la de todos los demás planetas juntos. Su Gran Mancha Roja es una tormenta gigante activa desde hace siglos.',
+                hasRings: true
+            },
+            saturn: {
+                name: 'Saturno', icon: '♄', radius: 92, color: 0xe6d5a8, orbitRadius: 958, speed: 0.034,
+                inclination: 2.5, diameter: '116,460 km', mass: '5.68 × 10²⁶ kg', gravity: '10.44 m/s²',
+                dayLength: '10h 33min', yearLength: '29.46 años', tempMin: '-178 °C', tempMax: '-178 °C',
+                moons: [
+                    { name: 'Titán', radius: 1.7, color: 0xd4a060, orbitRadius: 40, orbitSpeed: 0.03, inclination: 0.3 },
+                    { name: 'Encélado', radius: 0.7, color: 0xffffff, orbitRadius: 28, orbitSpeed: 0.05, inclination: 0.0 },
+                    { name: 'Rea', radius: 0.8, color: 0xc0c0b0, orbitRadius: 50, orbitSpeed: 0.025, inclination: 0.35 },
+                    { name: 'Dione', radius: 0.75, color: 0xe0e0d0, orbitRadius: 36, orbitSpeed: 0.028, inclination: 0.02 }
+                ],
+                info: 'Famoso por sus espectaculares anillos, formados por millones de partículas de hielo y roca. Es menos denso que el agua: flotaría en un océano suficientemente grande.',
+                hasRings: true
+            },
+            uranus: {
+                name: 'Urano', icon: '⛢', radius: 40, color: 0x7ec8e3, orbitRadius: 1920, speed: 0.012,
+                inclination: 0.8, diameter: '50,724 km', mass: '8.68 × 10²⁵ kg', gravity: '8.69 m/s²',
+                dayLength: '17h 14min', yearLength: '84 años', tempMin: '-224 °C', tempMax: '-216 °C',
+                moons: [
+                    { name: 'Titania', radius: 0.7, color: 0xb0b0b0, orbitRadius: 30, orbitSpeed: 0.02, inclination: 0.34 },
+                    { name: 'Oberón', radius: 0.65, color: 0x909090, orbitRadius: 40, orbitSpeed: 0.018, inclination: 0.1 },
+                    { name: 'Umbriel', radius: 0.5, color: 0x707070, orbitRadius: 22, orbitSpeed: 0.025, inclination: 0.13 },
+                    { name: 'Ariel', radius: 0.55, color: 0xc0c0c0, orbitRadius: 18, orbitSpeed: 0.03, inclination: 0.31 }
+                ],
+                info: 'Gira "tumbado" sobre su lado, con una inclinación axial de 97,8°. Esto provoca que sus polos reciban luz solar durante décadas.',
+                hasRings: true
+            },
+            neptune: {
+                name: 'Neptuno', icon: '♆', radius: 38, color: 0x3d5ef7, orbitRadius: 3007, speed: 0.006,
+                inclination: 1.8, diameter: '49,244 km', mass: '1.02 × 10²⁶ kg', gravity: '11.15 m/s²',
+                dayLength: '16h 6min', yearLength: '164.8 años', tempMin: '-218 °C', tempMax: '-200 °C',
+                moons: [
+                    { name: 'Tritón', radius: 0.9, color: 0xd0d0e0, orbitRadius: 28, orbitSpeed: -0.045, inclination: 157 },
+                    { name: 'Nereida', radius: 0.3, color: 0x808090, orbitRadius: 50, orbitSpeed: 0.008, inclination: 7.23 }
+                ],
+                info: 'El planeta más ventoso, con vientos que superan los 2,000 km/h. Tritón, su luna más grande, orbita en dirección retrógrada y se acerca lentamente a Neptuno.',
+                hasRings: true
+            }
+        };
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setClearColor(0x000008, 1);
+        document.getElementById('container').appendChild(renderer.domElement);
+
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 20000);
+        const camControls = attachCameraControls(renderer, camera, new THREE.Vector3(0, 0, 0), {
+            minDist: 30, maxDist: 8000, initialDist: 1800, phi: 1.0
+        });
+
+        scene.add(new THREE.AmbientLight(0x444466, 0.6));
+        const sunLight = new THREE.PointLight(0xffffff, 2.5, 0, 1);
+        sunLight.position.set(0, 0, 0);
+        scene.add(sunLight);
+
+        scene.add(createStarfield(scene, 4000, 4000));
+
+        const sunTexture = generatePlanetTexture('sun');
+        const sunMat = new THREE.MeshBasicMaterial({ map: sunTexture });
+        const sun = new THREE.Mesh(new THREE.SphereGeometry(planetsData.sun.radius, 64, 64), sunMat);
+        scene.add(sun);
+
+        const sunGlow = new THREE.PointLight(0xffaa00, 1.5, 600);
+        sun.add(sunGlow);
+
+        const planets = {};
+        const planetLabels = {};
+        const orbitLines = [];
+        let paused = false;
+        let speedMultiplier = 50;
+        let showOrbits = true;
+        let showLabels = false;
+        let targetPlanet = null;
+
+        Object.entries(planetsData).forEach(([key, data]) => {
+            if (key === 'sun') return;
+
+            const tex = generatePlanetTexture(key);
+            // Un poco de emisivo para que la cara nocturna no quede completamente negra
+            const mat = new THREE.MeshStandardMaterial({
+                map: tex,
+                roughness: 0.9,
+                metalness: 0.0,
+                emissive: new THREE.Color(data.color).multiplyScalar(0.04)
+            });
+            const planet = new THREE.Mesh(new THREE.SphereGeometry(data.radius, 48, 48), mat);
+
+            const initAngle = Math.random() * Math.PI * 2;
+            const inclRad = data.inclination * Math.PI / 180;
+            planet.position.set(
+                Math.cos(initAngle) * data.orbitRadius,
+                Math.sin(initAngle) * data.orbitRadius * Math.sin(inclRad),
+                Math.sin(initAngle) * data.orbitRadius * Math.cos(inclRad)
+            );
+            planet.userData = { key, data, angle: initAngle };
+
+            if (data.hasRings) {
+                const ringInner = data.radius * 1.2;
+                const ringOuter = data.radius * 1.8;
+                const ringGeo = new THREE.RingGeometry(ringInner, ringOuter, 96);
+                const ringColor = key === 'saturn' ? 0xe6d5a8 : (key === 'uranus' ? 0x6a8a9a : 0x888888);
+                const ringMat = new THREE.MeshBasicMaterial({
+                    color: ringColor, side: THREE.DoubleSide, transparent: true, opacity: 0.55
+                });
+                const ring = new THREE.Mesh(ringGeo, ringMat);
+                ring.rotation.x = Math.PI / 2;
+                if (key === 'saturn') ring.rotation.z = 26.73 * Math.PI / 180;
+                else if (key === 'uranus') ring.rotation.x = Math.PI / 2 - 97.77 * Math.PI / 180;
+                else if (key === 'jupiter') ring.rotation.z = 3.13 * Math.PI / 180;
+                else if (key === 'neptune') ring.rotation.z = 28.32 * Math.PI / 180;
+                planet.add(ring);
+            }
+
+            if (data.moons) {
+                data.moons.forEach((moonData) => {
+                    const moonTex = generatePlanetTexture('moon');
+                    const moonMat = new THREE.MeshStandardMaterial({ map: moonTex, roughness: 1.0 });
+                    const moon = new THREE.Mesh(
+                        new THREE.SphereGeometry(moonData.radius, 20, 20),
+                        moonMat
+                    );
+                    const moonAngle = Math.random() * Math.PI * 2;
+                    const moonInclRad = (moonData.inclination || 0) * Math.PI / 180;
+                    moon.position.set(
+                        Math.cos(moonAngle) * moonData.orbitRadius,
+                        Math.sin(moonAngle) * moonData.orbitRadius * Math.sin(moonInclRad),
+                        Math.sin(moonAngle) * moonData.orbitRadius * Math.cos(moonInclRad)
+                    );
+                    moon.userData = {
+                        angle: moonAngle,
+                        orbitRadius: moonData.orbitRadius,
+                        inclination: moonData.inclination || 0,
+                        orbitSpeed: moonData.orbitSpeed || 0.02
+                    };
+
+                    const moonOrbitGeo = new THREE.BufferGeometry();
+                    const moonOrbitPts = [];
+                    for (let i = 0; i <= 64; i++) {
+                        const a = (i / 64) * Math.PI * 2;
+                        moonOrbitPts.push(new THREE.Vector3(
+                            Math.cos(a) * moonData.orbitRadius,
+                            Math.sin(a) * moonData.orbitRadius * Math.sin(moonInclRad),
+                            Math.sin(a) * moonData.orbitRadius * Math.cos(moonInclRad)
+                        ));
+                    }
+                    moonOrbitGeo.setFromPoints(moonOrbitPts);
+                    planet.add(new THREE.Line(moonOrbitGeo, new THREE.LineBasicMaterial({ color: 0x556688, transparent: true, opacity: 0.4 })));
+
+                    planet.add(moon);
+                    planet.userData.moons = planet.userData.moons || [];
+                    planet.userData.moons.push(moon);
+                });
+            }
+
+            const orbitColor = new THREE.Color().setHSL(0.6, 0.3, 0.4);
+            const orbitLine = createOrbitLine(data.orbitRadius, data.inclination, orbitColor.getHex(), 0.5);
+            scene.add(orbitLine);
+            orbitLines.push(orbitLine);
+
+            const label = createTextSprite(data.name, '#ffffff', 30);
+            label.position.set(0, data.radius + 15, 0);
+            label.visible = false;
+            planet.add(label);
+            planetLabels[key] = label;
+
+            scene.add(planet);
+            planets[key] = planet;
+        });
+
+        document.getElementById('speed-slider').addEventListener('input', e => {
+            speedMultiplier = parseInt(e.target.value);
+            document.getElementById('speed-value').textContent = speedMultiplier;
+        });
+
+        document.getElementById('btn-pause').addEventListener('click', () => {
+            paused = !paused;
+            document.getElementById('btn-pause').textContent = paused ? '▶️ Reanudar' : '⏸️ Pausar';
+            document.getElementById('btn-pause').classList.toggle('active', paused);
+        });
+
+        document.getElementById('btn-reset').addEventListener('click', () => {
+            Object.values(planets).forEach(p => {
+                p.userData.angle = Math.random() * Math.PI * 2;
+            });
+        });
+
+        document.getElementById('btn-orbits').addEventListener('click', () => {
+            showOrbits = !showOrbits;
+            orbitLines.forEach(line => line.visible = showOrbits);
+            document.getElementById('btn-orbits').classList.toggle('active', showOrbits);
+        });
+
+        document.getElementById('btn-labels').addEventListener('click', () => {
+            showLabels = !showLabels;
+            Object.values(planetLabels).forEach(l => l.visible = showLabels);
+            document.getElementById('btn-labels').classList.toggle('active', showLabels);
+        });
+
+        document.getElementById('planet-select').addEventListener('change', e => {
+            if (e.target.value) showPlanetInfo(e.target.value);
+            else {
+                document.getElementById('planet-info').style.display = 'none';
+                targetPlanet = null;
+                camControls.setManual(true);
+                camControls.setDistance(1800);
+            }
+        });
+
+        function showPlanetInfo(key) {
+            const data = planetsData[key];
+            let dataHtml = '<div class="data-grid">';
+            if (data.diameter) dataHtml += `<div class="data-item"><div class="data-label">Diámetro</div><div class="data-value">${data.diameter}</div></div>`;
+            if (data.mass) dataHtml += `<div class="data-item"><div class="data-label">Masa</div><div class="data-value">${data.mass}</div></div>`;
+            if (data.gravity) dataHtml += `<div class="data-item"><div class="data-label">Gravedad</div><div class="data-value">${data.gravity}</div></div>`;
+            if (data.dayLength) dataHtml += `<div class="data-item"><div class="data-label">Duración día</div><div class="data-value">${data.dayLength}</div></div>`;
+            if (data.yearLength) dataHtml += `<div class="data-item"><div class="data-label">Duración año</div><div class="data-value">${data.yearLength}</div></div>`;
+            if (data.tempMin) dataHtml += `<div class="data-item"><div class="data-label">Temp. mín</div><div class="data-value">${data.tempMin}</div></div>`;
+            if (data.tempMax) dataHtml += `<div class="data-item"><div class="data-label">Temp. máx</div><div class="data-value">${data.tempMax}</div></div>`;
+            dataHtml += '</div>';
+            let moonsHtml = '';
+            if (data.moons && data.moons.length > 0) {
+                moonsHtml = `<div class="moon-list">🌙 Lunas: ${data.moons.map(m => m.name).join(', ')}</div>`;
+            }
+            document.getElementById('planet-info').innerHTML = `
+                <div class="planet-icon">${data.icon}</div>
+                <h3>${data.name}</h3>
+                ${dataHtml}
+                <div class="info-text">${data.info}</div>
+                ${moonsHtml}
+            `;
+            document.getElementById('planet-info').style.display = 'block';
+            targetPlanet = key;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (!paused) {
+                sun.rotation.y += 0.001;
+                Object.values(planets).forEach(planet => {
+                    const data = planet.userData.data;
+                    const inclRad = data.inclination * Math.PI / 180;
+                    planet.userData.angle += data.speed * speedMultiplier * 0.0001;
+                    planet.position.set(
+                        Math.cos(planet.userData.angle) * data.orbitRadius,
+                        Math.sin(planet.userData.angle) * data.orbitRadius * Math.sin(inclRad),
+                        Math.sin(planet.userData.angle) * data.orbitRadius * Math.cos(inclRad)
+                    );
+                    planet.rotation.y += 0.005;
+
+                    if (planet.userData.moons) {
+                        planet.userData.moons.forEach((moon) => {
+                            moon.userData.angle += moon.userData.orbitSpeed * speedMultiplier * 0.001;
+                            const moonInclRad = moon.userData.inclination * Math.PI / 180;
+                            moon.position.set(
+                                Math.cos(moon.userData.angle) * moon.userData.orbitRadius,
+                                Math.sin(moon.userData.angle) * moon.userData.orbitRadius * Math.sin(moonInclRad),
+                                Math.sin(moon.userData.angle) * moon.userData.orbitRadius * Math.cos(moonInclRad)
+                            );
+                        });
+                    }
+                });
+            }
+
+            if (targetPlanet && planets[targetPlanet]) {
+                const target = planets[targetPlanet].position.clone();
+                const zoomDist = planetsData[targetPlanet].radius * 4 + 30;
+                const newX = target.x + zoomDist;
+                const newY = zoomDist * 0.4;
+                const newZ = target.z + zoomDist;
+                camera.position.x += (newX - camera.position.x) * 0.05;
+                camera.position.y += (newY - camera.position.y) * 0.05;
+                camera.position.z += (newZ - camera.position.z) * 0.05;
+                camera.lookAt(target);
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+        setupBackButton('back-btn');
+    </script>
+</body>
+</html>

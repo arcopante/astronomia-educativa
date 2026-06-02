@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cambio de Estaciones</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #000; overflow: hidden; color: white; }
+        #container { width: 100vw; height: 100vh; }
+        #controls {
+            position: fixed; top: 70px; left: 20px; background: rgba(20, 20, 60, 0.9);
+            padding: 20px; border-radius: 15px; border: 1px solid rgba(100, 100, 180, 0.3);
+            max-width: 280px; z-index: 10; max-height: calc(100vh - 100px); overflow-y: auto;
+        }
+        #controls h3 { margin-bottom: 15px; color: #ffd700; font-size: 1.1rem; }
+        .control-group { margin-bottom: 12px; }
+        .control-group label { display: block; margin-bottom: 5px; font-size: 0.9rem; color: #a0a0c0; }
+        .control-group input[type="range"] { width: 100%; cursor: pointer; }
+        .btn-row { display: flex; gap: 10px; margin-top: 15px; }
+        .btn {
+            flex: 1; padding: 10px; background: rgba(60, 60, 120, 0.8);
+            border: 1px solid rgba(100, 100, 180, 0.5); color: white;
+            border-radius: 8px; cursor: pointer; font-size: 0.85rem; transition: all 0.3s;
+        }
+        .btn:hover { background: rgba(80, 80, 150, 0.9); }
+        .btn.active { background: rgba(100, 100, 200, 0.9); }
+        #info-panel {
+            position: fixed; top: 70px; right: 20px;
+            background: rgba(20, 20, 60, 0.95); padding: 22px;
+            border-radius: 15px; border: 1px solid rgba(100, 100, 180, 0.3);
+            max-width: 340px; z-index: 10; max-height: calc(100vh - 100px); overflow-y: auto;
+        }
+        #info-panel h2 { color: #ffd700; margin-bottom: 8px; font-size: 1.5rem; }
+        #info-panel .date { color: #a0a0c0; font-size: 0.95rem; margin-bottom: 14px; }
+        #info-panel .date strong { color: #ffffff; }
+        #info-panel .explanation {
+            font-size: 0.9rem; color: #c0c0e0; line-height: 1.6;
+            padding: 12px 0; border-top: 1px solid rgba(100, 100, 180, 0.3);
+            border-bottom: 1px solid rgba(100, 100, 180, 0.3);
+        }
+        #hemisphere-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px;
+        }
+        .hem-card {
+            background: rgba(40, 40, 80, 0.5); padding: 12px; border-radius: 10px;
+            text-align: center;
+        }
+        .hem-card.north { border-top: 3px solid #4a9eff; }
+        .hem-card.south { border-top: 3px solid #ff8c42; }
+        .hem-card .hem-name { font-size: 0.75rem; color: #888; text-transform: uppercase; margin-bottom: 6px; }
+        .hem-card .hem-season { font-size: 1.2rem; font-weight: bold; margin-bottom: 6px; }
+        .hem-card .hem-daylen { font-size: 0.85rem; color: #c0c0e0; }
+        #sun-inset {
+            margin-top: 14px; padding: 10px; background: rgba(0, 0, 0, 0.4);
+            border-radius: 10px; text-align: center;
+        }
+        #sun-inset h4 { font-size: 0.85rem; color: #a0a0c0; margin-bottom: 6px; }
+        #earth-from-sun { width: 100%; height: 180px; background: #000; border-radius: 8px; }
+        #instructions {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            background: rgba(20, 20, 60, 0.8); padding: 10px 20px; border-radius: 10px;
+            font-size: 0.85rem; color: #a0a0c0; z-index: 10;
+        }
+    </style>
+</head>
+<body>
+    <div id="container"></div>
+    <div id="controls">
+        <h3>🌍 Controles <button id="back-btn" style="float:right;background:transparent;border:1px solid #888;color:#fff;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:0.8rem;">← Volver</button></h3>
+        <div class="control-group">
+            <label>Velocidad orbital</label>
+            <input type="range" id="speed-slider" min="0" max="300" value="20">
+            <div style="text-align: right; font-size: 0.8rem; color: #888;">x<span id="speed-value">20</span></div>
+        </div>
+        <div class="btn-row">
+            <button class="btn" id="btn-pause">⏸️ Pausar</button>
+            <button class="btn" id="btn-reset">🔄 Inicio</button>
+        </div>
+        <div class="btn-row">
+            <button class="btn active" id="btn-tilt">Eje axial</button>
+            <button class="btn active" id="btn-orbit">Órbita</button>
+            <button class="btn" id="btn-axes">Coordenadas</button>
+        </div>
+        <div class="btn-row">
+            <button class="btn" id="btn-jump-spring">🌸 21 mar</button>
+            <button class="btn" id="btn-jump-summer">☀️ 21 jun</button>
+        </div>
+        <div class="btn-row">
+            <button class="btn" id="btn-jump-autumn">🍂 22 sep</button>
+            <button class="btn" id="btn-jump-winter">❄️ 21 dic</button>
+        </div>
+    </div>
+    <div id="info-panel">
+        <h2 id="season-name">Primavera</h2>
+        <div class="date" id="date-info">21 de marzo · Equinoccio de primavera (Norte)</div>
+        <div class="explanation" id="explanation">
+            El eje de la Tierra está inclinado 23,5° respecto al plano orbital, pero esa inclinación apunta siempre en la misma dirección en el espacio (hacia la estrella Polar). Las estaciones se producen por la orientación relativa entre ese eje fijo y la dirección del Sol.
+        </div>
+        <div id="hemisphere-grid">
+            <div class="hem-card north">
+                <div class="hem-name">Hemisferio norte</div>
+                <div class="hem-season" id="north-season">Primavera</div>
+                <div class="hem-daylen" id="north-daylen">12 h de día</div>
+            </div>
+            <div class="hem-card south">
+                <div class="hem-name">Hemisferio sur</div>
+                <div class="hem-season" id="south-season">Otoño</div>
+                <div class="hem-daylen" id="south-daylen">12 h de día</div>
+            </div>
+        </div>
+        <div id="sun-inset">
+            <h4>Vista desde el Sol · día/noche y polos</h4>
+            <canvas id="earth-from-sun" width="300" height="180"></canvas>
+        </div>
+    </div>
+    <div id="instructions">🖱️ Arrastra para rotar • Scroll para zoom</div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="../utils/textures.js"></script>
+    <script src="../utils/space.js"></script>
+    <script>
+        const AXIAL_TILT = 23.5 * (Math.PI / 180);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        document.getElementById('container').appendChild(renderer.domElement);
+
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 3000);
+        const camControls = attachCameraControls(renderer, camera, new THREE.Vector3(0, 0, 0), {
+            minDist: 30, maxDist: 800, initialDist: 200, phi: 0.9
+        });
+
+        const sunLight = new THREE.DirectionalLight(0xffffff, 1.8);
+        sunLight.position.set(0, 0, 0);
+        scene.add(sunLight);
+        scene.add(new THREE.AmbientLight(0x202030, 0.35));
+
+        const sun = new THREE.Mesh(
+            new THREE.SphereGeometry(15, 48, 48),
+            new THREE.MeshBasicMaterial({ map: generatePlanetTexture('sun') })
+        );
+        scene.add(sun);
+
+        const sunGlow = new THREE.PointLight(0xffaa00, 0.5, 200);
+        sun.add(sunGlow);
+
+        scene.add(createStarfield(scene, 2000, 3000));
+
+        const orbitRadius = 90;
+        const orbitLine = createOrbitLine(orbitRadius, 0, 0x333355, 0.5);
+        scene.add(orbitLine);
+
+        const earthGroup = new THREE.Group();
+        scene.add(earthGroup);
+
+        // Grupo de inclinación: la inclinación axial es fija en el espacio.
+        // Al inclinar este grupo, el eje Y local de sus hijos se convierte en el eje polar inclinado.
+        const earthTilt = new THREE.Group();
+        earthTilt.rotation.x = -AXIAL_TILT; // fija la inclinación
+        earthGroup.add(earthTilt);
+
+        const earthTexture = generatePlanetTexture('earth');
+        // Cacheamos los datos de píxeles para acceso rápido (image es el canvas en Three.js)
+        const earthTextureData = earthTexture.image.getContext('2d').getImageData(0, 0, earthTexture.image.width, earthTexture.image.height).data;
+        const earthMat = new THREE.MeshStandardMaterial({ map: earthTexture, roughness: 0.85 });
+        const earth = new THREE.Mesh(new THREE.SphereGeometry(8, 64, 64), earthMat);
+        earthTilt.add(earth);
+
+        const atmosphereMat = new THREE.MeshBasicMaterial({
+            color: 0x88ccff, transparent: true, opacity: 0.18, side: THREE.BackSide
+        });
+        const atmosphere = new THREE.Mesh(new THREE.SphereGeometry(8.7, 64, 64), atmosphereMat);
+        earthTilt.add(atmosphere);
+
+        // Indicador del eje: cilindro fino que pasa por los polos (en el grupo inclinado)
+        const axisGeo = new THREE.CylinderGeometry(0.15, 0.15, 22, 16);
+        const axisMat = new THREE.MeshBasicMaterial({ color: 0xff6666 });
+        const earthAxis = new THREE.Mesh(axisGeo, axisMat);
+        earthTilt.add(earthAxis);
+
+        // Hemisferios norte/sur (también dentro del grupo inclinado)
+        const northPoleCap = new THREE.Mesh(
+            new THREE.SphereGeometry(0.5, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2),
+            new THREE.MeshBasicMaterial({ color: 0x4a9eff })
+        );
+        northPoleCap.position.y = 7.95;
+        earthTilt.add(northPoleCap);
+
+        const southPoleCap = new THREE.Mesh(
+            new THREE.SphereGeometry(0.5, 16, 16, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2),
+            new THREE.MeshBasicMaterial({ color: 0xff8c42 })
+        );
+        southPoleCap.position.y = -7.95;
+        earthTilt.add(southPoleCap);
+
+        // Plano de la eclíptica (referencia)
+        const eclipticGeo = new THREE.RingGeometry(orbitRadius - 1, orbitRadius + 1, 128);
+        const eclipticMat = new THREE.MeshBasicMaterial({ color: 0x444466, side: THREE.DoubleSide, transparent: true, opacity: 0.4 });
+        const ecliptic = new THREE.Mesh(eclipticGeo, eclipticMat);
+        ecliptic.rotation.x = Math.PI / 2;
+        scene.add(ecliptic);
+
+        let paused = false;
+        let showAxis = true;
+        let showOrbit = true;
+        let showAxes = false;
+        let orbitalAngle = 0;
+        let speedMultiplier = 20;
+
+        const seasonNames = {
+            0: { name: 'Primavera', icon: '🌸', date: '20-21 de marzo', event: 'Equinoccio de primavera (Norte)' },
+            1: { name: 'Verano', icon: '☀️', date: '20-21 de junio', event: 'Solsticio de verano (Norte)' },
+            2: { name: 'Otoño', icon: '🍂', date: '22-23 de septiembre', event: 'Equinoccio de otoño (Norte)' },
+            3: { name: 'Invierno', icon: '❄️', date: '21-22 de diciembre', event: 'Solsticio de invierno (Norte)' }
+        };
+
+        const explanations = {
+            // {hemisferio, estacion}: explicacion
+            'north-spring': 'El polo norte empieza a inclinarse hacia el Sol. Los días se alargan progresivamente y las temperaturas suben. La radiación solar se reparte de forma cada vez más directa.',
+            'north-summer': 'El polo norte está en su máxima inclinación hacia el Sol. Es el día más largo del año y el Sol alcanza su mayor altura en el cielo. La radiación incide perpendicular y concentra más energía por unidad de superficie.',
+            'north-autumn': 'El polo norte se aleja progresivamente del Sol. Los días se acortan, las temperaturas bajan y la radiación llega más oblicua, repartiendo la misma energía en más superficie.',
+            'north-winter': 'El polo norte está en su máxima inclinación opuesta al Sol. Es el día más corto del año y el Sol permanece bajo en el cielo. La radiación es oblicua y se reparte en mucha superficie, llegando con poca energía.',
+            'south-spring': 'El polo sur empieza a orientarse hacia el Sol tras el invierno austral. Los días se alargan y la radiación se hace más directa, aumentando las temperaturas.',
+            'south-summer': 'El polo sur alcanza su máxima inclinación hacia el Sol. El hemisferio sur disfruta de su día más largo y de radiación más directa: es su verano.',
+            'south-autumn': 'El polo sur se aleja del Sol. Los días se acortan y baja la temperatura: comienza el otoño austral.',
+            'south-winter': 'El polo sur está en su máxima inclinación opuesta al Sol. Días cortos, Sol bajo y radiación dispersa: el invierno más frío del hemisferio sur.'
+        };
+
+        function getSeasonInfo(angle) {
+            const deg = ((angle * 180 / Math.PI) % 360 + 360) % 360;
+            let idx;
+            if (deg < 90) idx = 0;
+            else if (deg < 180) idx = 1;
+            else if (deg < 270) idx = 2;
+            else idx = 3;
+            return { ...seasonNames[idx], idx, deg };
+        }
+
+        function getOppositeSeason(idx) {
+            return (idx + 2) % 4;
+        }
+
+        function dayLengthAtLatitude(lat, seasonIdx) {
+            // Aproximación: duración del día en horas según la estación
+            // En latitudes medias (~45°): 12h en equinoccios, 15h en solsticio favorable, 9h en desfavorable
+            const t = lat;
+            const absLat = Math.abs(t);
+            // simplificación: en latitudes polares hay 24h de día o de noche en solsticios
+            if (seasonIdx === 0 || seasonIdx === 2) {
+                return 12 + ' h de día';
+            }
+            if (seasonIdx === 1) {
+                // Verano norte
+                if (t > 0) return (12 + 2 * absLat / 90 * 3).toFixed(1) + ' h de día';
+                else return (12 - 2 * absLat / 90 * 3).toFixed(1) + ' h de día';
+            } else {
+                // Invierno norte
+                if (t > 0) return (12 - 2 * absLat / 90 * 3).toFixed(1) + ' h de día';
+                else return (12 + 2 * absLat / 90 * 3).toFixed(1) + ' h de día';
+            }
+        }
+
+        function getDateFromAngle(angle) {
+            // θ=0 → 20 marzo (~día 80 del año)
+            const dayOfYear = (80 + (angle / (2 * Math.PI)) * 365) % 365;
+            const date = new Date(2024, 0, 1);
+            date.setDate(Math.floor(dayOfYear) + 1);
+            const months = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+            return `${date.getDate()} de ${months[date.getMonth()]}`;
+        }
+
+        function drawEarthFromSun() {
+            const canvas = document.getElementById('earth-from-sun');
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width, h = canvas.height;
+            ctx.clearRect(0, 0, w, h);
+            const cx = w / 2, cy = h / 2;
+            const r = Math.min(w, h) * 0.42;
+
+            // Dirección de la vista desde el Sol hacia la Tierra
+            const viewDir = new THREE.Vector3().subVectors(earthGroup.position, sun.position).normalize();
+            // Eje de rotación de la Tierra en coordenadas del mundo (la inclinación está en earthTilt, no en earth)
+            const earthAxisWorld = new THREE.Vector3(0, 1, 0).applyEuler(earthTilt.rotation);
+            // Ejes de la cámara (right, up) en mundo
+            const worldUp = new THREE.Vector3(0, 1, 0);
+            const camRight = new THREE.Vector3().crossVectors(viewDir, worldUp).normalize();
+            const camUp = new THREE.Vector3().crossVectors(camRight, viewDir).normalize();
+
+            // Fondo
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, w, h);
+
+            // Disco de la Tierra
+            const earthImg = ctx.createImageData(w, h);
+            // Para cada píxel, calculamos el punto 3D sobre la esfera usando un frame ortográfico
+            // X = hacia el Sol (depth), Y/Z = plano imagen
+            for (let py = 0; py < h; py++) {
+                for (let px = 0; px < w; px++) {
+                    const u = (px - cx) / r;
+                    const v = (py - cy) / r;
+                    const d2 = u * u + v * v;
+                    if (d2 > 1) continue;
+                    const depth = Math.sqrt(1 - d2);
+                    // Vector 3D en el frame de la cámara: depth hacia el Sol, u en camRight, v en camUp
+                    // (En este frame, la luz viene de +depth, el lado iluminado es depth > 0)
+                    // Para obtener el punto en mundo:
+                    //   p_world = camRight * u + camUp * (-v) + viewDir * depth
+                    //   (canvas Y invertido → -v para que arriba en canvas sea +Y)
+                    // El vector desde el centro de la Tierra al punto de la superficie (en mundo)
+                    const surface = new THREE.Vector3()
+                        .addScaledVector(camRight, u)
+                        .addScaledVector(camUp, -v)
+                        .addScaledVector(viewDir, depth);
+                    // Iluminación: la luz viene del Sol, dirección opuesta a viewDir
+                    // (viewDir va de Sol a Tierra, así que la dirección entrante es -viewDir)
+                    // El factor de Lambert es max(0, normal · (-viewDir)) = max(0, -surface · viewDir)
+                    const lit = -surface.dot(viewDir);
+                    // Lat/Lon: el eje de la Tierra es earthAxisWorld; el ecuador es perpendicular
+                    const lat = Math.asin(surface.dot(earthAxisWorld)) / Math.PI + 0.5;
+                    // Longitud: ángulo en el plano ecuatorial
+                    const projOnEq = surface.clone().addScaledVector(earthAxisWorld, -surface.dot(earthAxisWorld));
+                    const eqRef = new THREE.Vector3(0, 0, 1);
+                    if (Math.abs(earthAxisWorld.dot(eqRef)) > 0.99) eqRef.set(1, 0, 0);
+                    const eqRight = new THREE.Vector3().crossVectors(earthAxisWorld, eqRef).normalize();
+                    const eqForward = new THREE.Vector3().crossVectors(eqRight, earthAxisWorld).normalize();
+                    const lon = Math.atan2(projOnEq.dot(eqRight), projOnEq.dot(eqForward)) / (2 * Math.PI) + 0.5;
+                    const texX = ((Math.floor(lon * 512) % 512) + 512) % 512;
+                    const texY = Math.max(0, Math.min(255, Math.floor(lat * 256)));
+                    const idx = (texY * 512 + texX) * 4;
+                    let r0 = earthTextureData[idx];
+                    let g0 = earthTextureData[idx + 1];
+                    let b0 = earthTextureData[idx + 2];
+                    const factor = Math.max(0.05, lit);
+                    r0 = Math.min(255, Math.floor(r0 * factor));
+                    g0 = Math.min(255, Math.floor(g0 * factor));
+                    b0 = Math.min(255, Math.floor(b0 * factor));
+                    const i = (py * w + px) * 4;
+                    earthImg.data[i] = r0;
+                    earthImg.data[i + 1] = g0;
+                    earthImg.data[i + 2] = b0;
+                    earthImg.data[i + 3] = 255;
+                }
+            }
+            ctx.putImageData(earthImg, 0, 0);
+
+            // Ecuador
+            ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(cx - r, cy);
+            ctx.lineTo(cx + r, cy);
+            ctx.stroke();
+
+            // Eje polar proyectado en la vista del Sol
+            // Proyectamos earthAxisWorld sobre el plano de la imagen (perpendicular a viewDir)
+            const axisProj = earthAxisWorld.clone().addScaledVector(viewDir, -earthAxisWorld.dot(viewDir));
+            if (axisProj.lengthSq() > 0.0001) {
+                axisProj.normalize();
+                const axisLen = r * 1.1;
+                // En canvas, y crece hacia abajo; el extremo "+axisProj" se dibuja ARRIBA en cy - ...
+                const ax_pos_x = cx + axisProj.dot(camRight) * axisLen;
+                const ay_pos_y = cy - axisProj.dot(camUp) * axisLen;
+                const ax_neg_x = cx - axisProj.dot(camRight) * axisLen;
+                const ay_neg_y = cy + axisProj.dot(camUp) * axisLen;
+                ctx.strokeStyle = 'rgba(255,100,100,0.8)';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(ax_neg_x, ay_neg_y);
+                ctx.lineTo(ax_pos_x, ay_pos_y);
+                ctx.stroke();
+                // Polo norte: el extremo del eje en la dirección +earthAxisWorld
+                // (que se dibuja arriba en canvas: cy - ...)
+                const nx = ax_pos_x;
+                const ny = ay_pos_y;
+                ctx.fillStyle = '#4a9eff';
+                ctx.beginPath();
+                ctx.arc(nx, ny, 4, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 11px Arial';
+                ctx.fillText('N', nx + 6, ny + 3);
+            }
+        }
+
+        function updateInfo() {
+            const season = getSeasonInfo(orbitalAngle);
+            const opposite = getOppositeSeason(season.idx);
+            const dateStr = getDateFromAngle(orbitalAngle);
+
+            document.getElementById('season-name').innerHTML = `${season.icon} ${season.name}`;
+            document.getElementById('date-info').innerHTML = `<strong>${dateStr}</strong> · ${season.event}`;
+
+            const northKey = ['north-spring', 'north-summer', 'north-autumn', 'north-winter'][season.idx];
+            // El hemisferio sur va con la estación opuesta
+            const southKey = ['south-autumn', 'south-winter', 'south-spring', 'south-summer'][season.idx];
+            document.getElementById('explanation').innerHTML = `<strong>Hemisferio norte:</strong> ${explanations[northKey]}<br><br><strong>Hemisferio sur:</strong> ${explanations[southKey]}`;
+
+            document.getElementById('north-season').textContent = season.name;
+            document.getElementById('south-season').textContent = seasonNames[opposite].name;
+            document.getElementById('north-daylen').textContent = dayLengthAtLatitude(45, season.idx);
+            document.getElementById('south-daylen').textContent = dayLengthAtLatitude(-45, season.idx);
+
+            drawEarthFromSun();
+        }
+
+        // Controles
+        document.getElementById('speed-slider').addEventListener('input', e => {
+            speedMultiplier = parseInt(e.target.value);
+            document.getElementById('speed-value').textContent = speedMultiplier;
+        });
+
+        document.getElementById('btn-pause').addEventListener('click', () => {
+            paused = !paused;
+            document.getElementById('btn-pause').textContent = paused ? '▶️ Reanudar' : '⏸️ Pausar';
+            document.getElementById('btn-pause').classList.toggle('active', paused);
+        });
+
+        document.getElementById('btn-reset').addEventListener('click', () => { orbitalAngle = 0; });
+
+        document.getElementById('btn-tilt').addEventListener('click', () => {
+            showAxis = !showAxis;
+            earthAxis.visible = showAxis;
+            northPoleCap.visible = showAxis;
+            southPoleCap.visible = showAxis;
+            document.getElementById('btn-tilt').classList.toggle('active', showAxis);
+        });
+
+        document.getElementById('btn-orbit').addEventListener('click', () => {
+            showOrbit = !showOrbit;
+            orbitLine.visible = showOrbit;
+            ecliptic.visible = showOrbit;
+            document.getElementById('btn-orbit').classList.toggle('active', showOrbit);
+        });
+
+        document.getElementById('btn-axes').addEventListener('click', () => {
+            showAxes = !showAxes;
+            document.getElementById('btn-axes').classList.toggle('active', showAxes);
+        });
+
+        document.getElementById('btn-jump-spring').addEventListener('click', () => { orbitalAngle = 0; });
+        document.getElementById('btn-jump-summer').addEventListener('click', () => { orbitalAngle = Math.PI / 2; });
+        document.getElementById('btn-jump-autumn').addEventListener('click', () => { orbitalAngle = Math.PI; });
+        document.getElementById('btn-jump-winter').addEventListener('click', () => { orbitalAngle = 3 * Math.PI / 2; });
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (!paused) {
+                orbitalAngle += 0.0003 * speedMultiplier;
+            }
+
+            earthGroup.position.x = Math.cos(orbitalAngle) * orbitRadius;
+            earthGroup.position.z = Math.sin(orbitalAngle) * orbitRadius;
+
+            // Dirección del Sol para la luz
+            sunLight.position.copy(sun.position);
+            sunLight.target.position.copy(earthGroup.position);
+            scene.add(sunLight.target);
+
+            // Rotación diaria: la Tierra gira sobre su eje inclinado
+            // Como 'earth' es hijo de 'earthTilt' (que tiene la inclinación axial),
+            // su rotación Y local es alrededor del eje polar inclinado en el espacio
+            if (!paused) earth.rotation.y += 0.02;
+
+            updateInfo();
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Inicializar
+        earthGroup.position.x = Math.cos(0) * orbitRadius;
+        earthGroup.position.z = Math.sin(0) * orbitRadius;
+        updateInfo();
+        setupBackButton('back-btn');
+        animate();
+    </script>
+</body>
+</html>
