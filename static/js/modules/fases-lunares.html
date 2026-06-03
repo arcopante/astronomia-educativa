@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fases Lunares</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #000; overflow: hidden; color: white; }
+        #container { width: 100vw; height: 100vh; }
+        #controls {
+            position: fixed; top: 70px; left: 20px; background: rgba(20, 20, 60, 0.9);
+            padding: 20px; border-radius: 15px; border: 1px solid rgba(100, 100, 180, 0.3);
+            max-width: 280px; z-index: 10; max-height: calc(100vh - 100px); overflow-y: auto;
+        }
+        #controls h3 { margin-bottom: 15px; color: #ffd700; font-size: 1.1rem; }
+        .control-group { margin-bottom: 12px; }
+        .control-group label { display: block; margin-bottom: 5px; font-size: 0.9rem; color: #a0a0c0; }
+        .control-group input[type="range"] { width: 100%; cursor: pointer; }
+        .btn-row { display: flex; gap: 10px; margin-top: 15px; }
+        .btn {
+            flex: 1; padding: 10px; background: rgba(60, 60, 120, 0.8);
+            border: 1px solid rgba(100, 100, 180, 0.5); color: white;
+            border-radius: 8px; cursor: pointer; font-size: 0.85rem; transition: all 0.3s;
+        }
+        .btn:hover { background: rgba(80, 80, 150, 0.9); }
+        .btn.active { background: rgba(100, 100, 200, 0.9); }
+        .view-selector { width: 100%; padding: 8px; background: rgba(40, 40, 80, 0.8); color: white; border: 1px solid rgba(100, 100, 180, 0.5); border-radius: 8px; cursor: pointer; }
+        #info-panel {
+            position: fixed; top: 70px; right: 20px;
+            background: rgba(20, 20, 60, 0.95); padding: 22px;
+            border-radius: 15px; border: 1px solid rgba(100, 100, 180, 0.3);
+            max-width: 340px; z-index: 10; max-height: calc(100vh - 100px); overflow-y: auto;
+        }
+        #info-panel h2 { color: #ffd700; margin-bottom: 8px; font-size: 1.6rem; }
+        #info-panel .date { color: #a0a0c0; font-size: 0.95rem; margin-bottom: 14px; }
+        #info-panel .date strong { color: #ffffff; }
+        #info-panel .explanation {
+            font-size: 0.9rem; color: #c0c0e0; line-height: 1.6;
+            padding: 12px 0; border-top: 1px solid rgba(100, 100, 180, 0.3);
+            border-bottom: 1px solid rgba(100, 100, 180, 0.3);
+        }
+        .data-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px;
+        }
+        .data-item {
+            background: rgba(40, 40, 80, 0.5); padding: 10px; border-radius: 8px;
+        }
+        .data-label { font-size: 0.7rem; color: #888; text-transform: uppercase; }
+        .data-value { font-size: 1.05rem; color: #fff; margin-top: 2px; }
+        #moon-inset {
+            margin-top: 14px; padding: 14px;
+            background: rgba(0, 0, 0, 0.5); border-radius: 10px;
+            text-align: center;
+        }
+        #moon-inset h4 { font-size: 0.85rem; color: #a0a0c0; margin-bottom: 8px; }
+        #moon-view { width: 100%; height: 180px; background: #000; border-radius: 8px; display: block; }
+        #phase-name {
+            font-size: 1.2rem; color: #ffd700; margin-top: 6px; font-weight: bold;
+        }
+        #instructions {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            background: rgba(20, 20, 60, 0.8); padding: 10px 20px; border-radius: 10px;
+            font-size: 0.85rem; color: #a0a0c0; z-index: 10;
+        }
+    </style>
+</head>
+<body>
+    <div id="container"></div>
+    <div id="controls">
+        <h3>🌙 Controles</h3>
+        <div class="control-group">
+            <label>Velocidad orbital</label>
+            <input type="range" id="speed-slider" min="0" max="100" value="20">
+            <div style="text-align: right; font-size: 0.8rem; color: #888;">x<span id="speed-value">20</span></div>
+        </div>
+        <div class="control-group">
+            <label>Vista</label>
+            <select id="view-select" class="view-selector">
+                <option value="perspective">Vista perspectiva</option>
+                <option value="top">Vista superior (eclíptica)</option>
+                <option value="earth">Vista desde la Tierra</option>
+            </select>
+        </div>
+        <div class="btn-row">
+            <button class="btn" id="btn-pause">⏸️ Pausar</button>
+            <button class="btn" id="btn-reset">🔄 Inicio</button>
+        </div>
+        <div class="btn-row">
+            <button class="btn" id="btn-new">🌑 Nueva</button>
+            <button class="btn" id="btn-q1">🌓 Creciente</button>
+        </div>
+        <div class="btn-row">
+            <button class="btn" id="btn-full">🌕 Llena</button>
+            <button class="btn" id="btn-q3">🌗 Menguante</button>
+        </div>
+        <div class="btn-row">
+            <button class="btn active" id="btn-orbit">Órbita</button>
+            <button class="btn" id="btn-axes">Coordenadas</button>
+        </div>
+    </div>
+    <div id="info-panel">
+        <h2 id="phase-title">🌑 Luna nueva</h2>
+        <div class="date" id="phase-date">Día 0 del ciclo sinódico</div>
+        <div class="explanation" id="phase-explanation">
+            La Luna está entre la Tierra y el Sol. La cara iluminada mira hacia el Sol y la cara que vemos desde la Tierra queda en sombra. La Luna es invisible desde la Tierra (o solo se ve como un tenue resplandor ceniciento).
+        </div>
+        <div class="data-grid">
+            <div class="data-item">
+                <div class="data-label">Iluminación</div>
+                <div class="data-value" id="data-illum">0%</div>
+            </div>
+            <div class="data-item">
+                <div class="data-label">Edad lunar</div>
+                <div class="data-value" id="data-age">0.0 días</div>
+            </div>
+        </div>
+        <div id="moon-inset">
+            <h4>Aspecto desde la Tierra</h4>
+            <canvas id="moon-view" width="300" height="180"></canvas>
+            <div id="phase-name">Luna nueva</div>
+        </div>
+    </div>
+    <div id="instructions">🖱️ Izq: rotar • Der: desplazar • Scroll: zoom</div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="../utils/textures.js"></script>
+    <script src="../utils/space.js"></script>
+    <script>
+        const SUN_DIST = 320;
+        const SUN_RADIUS = 22;
+        const EARTH_RADIUS = 8;
+        const MOON_DIST = 28;
+        const MOON_RADIUS = 2.2;
+        const MOON_INCL = 5.14 * Math.PI / 180;
+        const SYNODIC_MONTH = 29.53;
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        document.getElementById('container').appendChild(renderer.domElement);
+
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 5000);
+        const camControls = attachCameraControls(renderer, camera, new THREE.Vector3(0, 0, 0), {
+            minDist: 30, maxDist: 2000, initialDist: 280, phi: 0.6
+        });
+
+        scene.add(new THREE.AmbientLight(0x222233, 0.35));
+        const sunLight = new THREE.PointLight(0xffffff, 1.8, 0, 0);
+        sunLight.position.set(SUN_DIST, 0, 0);
+        scene.add(sunLight);
+
+        scene.add(createStarfield(scene, 2500, 3000));
+
+        const sun = new THREE.Mesh(
+            new THREE.SphereGeometry(SUN_RADIUS, 48, 48),
+            new THREE.MeshBasicMaterial({ map: generatePlanetTexture('sun') })
+        );
+        sun.position.set(SUN_DIST, 0, 0);
+        scene.add(sun);
+
+        const corona = new THREE.Mesh(
+            new THREE.SphereGeometry(SUN_RADIUS * 1.25, 32, 32),
+            new THREE.MeshBasicMaterial({ color: 0xffeebb, transparent: true, opacity: 0.18, side: THREE.BackSide })
+        );
+        sun.add(corona);
+
+        const earthGroup = new THREE.Group();
+        scene.add(earthGroup);
+        const earth = new THREE.Mesh(
+            new THREE.SphereGeometry(EARTH_RADIUS, 48, 48),
+            new THREE.MeshStandardMaterial({ map: generatePlanetTexture('earth'), roughness: 0.9 })
+        );
+        earthGroup.add(earth);
+        const earthAtmo = new THREE.Mesh(
+            new THREE.SphereGeometry(EARTH_RADIUS * 1.05, 32, 32),
+            new THREE.MeshBasicMaterial({ color: 0x88ccff, transparent: true, opacity: 0.18, side: THREE.BackSide })
+        );
+        earthGroup.add(earthAtmo);
+
+        const moonOrbitGroup = new THREE.Group();
+        moonOrbitGroup.rotation.z = MOON_INCL;
+        earthGroup.add(moonOrbitGroup);
+
+        const moon = new THREE.Mesh(
+            new THREE.SphereGeometry(MOON_RADIUS, 32, 32),
+            new THREE.MeshStandardMaterial({ map: generatePlanetTexture('moon'), roughness: 0.95 })
+        );
+        moonOrbitGroup.add(moon);
+
+        const moonOrbitLine = createOrbitLine(MOON_DIST, 0, 0x556688, 0.35);
+        moonOrbitGroup.add(moonOrbitLine);
+
+        const sunEarthLineMat = new THREE.LineBasicMaterial({ color: 0xffaa44, transparent: true, opacity: 0.18 });
+        const sunEarthLine = new THREE.Line(
+            new THREE.BufferGeometry().setFromPoints([
+                new THREE.Vector3(-SUN_DIST - 30, 0, 0),
+                new THREE.Vector3(SUN_DIST + 30, 0, 0)
+            ]),
+            sunEarthLineMat
+        );
+        scene.add(sunEarthLine);
+
+        const earthOrbitLine = createOrbitLine(SUN_DIST, 0, 0x444466, 0.2);
+        scene.add(earthOrbitLine);
+
+        const labels = {
+            sun: createTextSprite('Sol', '#ffd700', 18),
+            earth: createTextSprite('Tierra', '#88ccff', 14),
+            moon: createTextSprite('Luna', '#dddddd', 10)
+        };
+        labels.sun.position.set(0, SUN_RADIUS + 18, 0);
+        sun.add(labels.sun);
+        labels.earth.position.set(0, EARTH_RADIUS + 7, 0);
+        earth.add(labels.earth);
+        labels.moon.position.set(0, MOON_RADIUS + 3, 0);
+        moonOrbitGroup.add(labels.moon);
+        Object.values(labels).forEach(l => l.visible = false);
+
+        const mkOrbitMarker = (angle, color) => {
+            const ring = new THREE.Mesh(
+                new THREE.RingGeometry(MOON_DIST - 0.5, MOON_DIST + 0.5, 32),
+                new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide, transparent: true, opacity: 0.25 })
+            );
+            ring.rotation.x = Math.PI / 2;
+            ring.rotation.z = -angle;
+            earthGroup.add(ring);
+            return ring;
+        };
+        const newMarker = mkOrbitMarker(0, 0x5566aa);
+        const q1Marker = mkOrbitMarker(Math.PI / 2, 0xaaa566);
+        const fullMarker = mkOrbitMarker(Math.PI, 0xddc070);
+        const q3Marker = mkOrbitMarker(3 * Math.PI / 2, 0x8866aa);
+        const allMarkers = [newMarker, q1Marker, fullMarker, q3Marker];
+        allMarkers.forEach(m => m.visible = true);
+
+        const moonTrail = [];
+        const trailMax = 80;
+        const trailGeo = new THREE.BufferGeometry();
+        const trailPositions = new Float32Array(trailMax * 3);
+        trailGeo.setAttribute('position', new THREE.BufferAttribute(trailPositions, 3));
+        const trailMat = new THREE.LineBasicMaterial({ color: 0x88aaff, transparent: true, opacity: 0.6 });
+        const trail = new THREE.Line(trailGeo, trailMat);
+        earthGroup.add(trail);
+        trail.visible = false;
+
+        let paused = false;
+        let speedMultiplier = 20;
+        let moonAngle = 0;
+        let viewMode = 'perspective';
+        let showOrbit = true;
+        let showAxes = false;
+        let showLabels = false;
+
+        const phaseInfo = {
+            new: { name: 'Luna nueva', icon: '🌑', explanation: 'La Luna está entre la Tierra y el Sol. La cara iluminada mira hacia el Sol y la cara que vemos desde la Tierra queda en sombra. La Luna es invisible desde la Tierra (o solo se ve como un tenue resplandor ceniciento).' },
+            waxing-crescent: { name: 'Creciente', icon: '🌒', explanation: 'Una pequeña porción del lado iluminado empieza a ser visible desde la Tierra. La Luna se aleja del Sol en el cielo y la parte iluminada crece noche tras noche.' },
+            q1: { name: 'Cuarto creciente', icon: '🌓', explanation: 'Exactamente la mitad del disco está iluminada. La Luna está 90° al este del Sol y se ve alta en el cielo al atardecer, ocultándose hacia la medianoche.' },
+            waxing-gibbous: { name: 'Gibosa creciente', icon: '🌔', explanation: 'Más de la mitad del disco está iluminado pero la Luna aún no está llena. La forma iluminada es gibosa (con joroba): casi circular pero con un borde oscuro.' },
+            full: { name: 'Luna llena', icon: '🌕', explanation: 'La Luna está en el lado opuesto al Sol, con la Tierra en medio. Toda la cara visible queda iluminada. La Luna sale al atardecer y se pone al amanecer.' },
+            waning-gibbous: { name: 'Gibosa menguante', icon: '🌖', explanation: 'Tras la luna llena, la parte iluminada empieza a decrecer. La Luna sale cada vez más tarde por la noche y la porción iluminada se reduce por el lado izquierdo.' },
+            q3: { name: 'Cuarto menguante', icon: '🌗', explanation: 'La mitad del disco está iluminada. La Luna está 90° al oeste del Sol y se ve alta en el cielo al amanecer.' },
+            waning-crescent: { name: 'Menguante', icon: '🌘', explanation: 'Solo queda un delgado creciente iluminado, que se reduce noche tras noche. La Luna se acerca al Sol en el cielo y pronto será de nuevo luna nueva.' }
+        };
+
+        function getPhase(angle) {
+            const a = ((angle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+            if (a < Math.PI / 4 || a > 2 * Math.PI - Math.PI / 4) return 'new';
+            if (a < 3 * Math.PI / 4) return 'waxing-crescent';
+            if (a < 5 * Math.PI / 4) return 'q1';
+            if (a < Math.PI + Math.PI / 2) return 'waxing-gibbous';
+            if (a < Math.PI + 3 * Math.PI / 4) return 'full';
+            if (a < 3 * Math.PI / 2 + Math.PI / 4) return 'waning-gibbous';
+            if (a < 3 * Math.PI / 2 + 3 * Math.PI / 4) return 'q3';
+            return 'waning-crescent';
+        }
+
+        function getPhaseData(angle) {
+            const a = ((angle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+            const phaseAngle = a;
+            const cosA = Math.cos(phaseAngle);
+            const illumination = (1 + cosA) / 2;
+            const moonAge = a / (2 * Math.PI) * SYNODIC_MONTH;
+            return { illumination, moonAge, phaseAngle };
+        }
+
+        function drawMoonInset(angle) {
+            const canvas = document.getElementById('moon-view');
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width, h = canvas.height;
+            ctx.clearRect(0, 0, w, h);
+            const cx = w / 2, cy = h / 2;
+            const R = Math.min(w, h) * 0.4;
+
+            ctx.fillStyle = '#1a1a2a';
+            ctx.fillRect(0, 0, w, h);
+
+            const data = getPhaseData(angle);
+            const cosA = data.cosA = Math.cos(angle);
+
+            const darkColor = '#0a0a14';
+            const lightColor = '#e8e4d4';
+
+            ctx.fillStyle = darkColor;
+            ctx.beginPath();
+            ctx.arc(cx, cy, R, 0, 2 * Math.PI);
+            ctx.fill();
+
+            if (Math.abs(cosA) > 0.998) {
+                if (cosA > 0) {
+                    ctx.fillStyle = lightColor;
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, R, 0, 2 * Math.PI);
+                    ctx.fill();
+                }
+            } else {
+                const ellipseX = R * cosA;
+                const ellipseY = R;
+                ctx.fillStyle = lightColor;
+                ctx.beginPath();
+                ctx.arc(cx, cy, R, Math.PI / 2, 3 * Math.PI / 2, false);
+                ctx.ellipse(cx, cy, Math.abs(ellipseX), ellipseY, 0, Math.PI / 2, 3 * Math.PI / 2, cosA < 0);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(cx, cy, R, 0, 2 * Math.PI);
+            ctx.stroke();
+
+            const sunDir2D = (angle < Math.PI) ? -1 : 1;
+            const sunX = cx + sunDir2D * (R + 12);
+            ctx.fillStyle = '#ffcc44';
+            ctx.beginPath();
+            ctx.arc(sunX, cy, 5, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.fillStyle = 'rgba(255,204,68,0.2)';
+            ctx.beginPath();
+            ctx.arc(sunX, cy, 9, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+
+
