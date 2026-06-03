@@ -158,74 +158,169 @@ function generateVenusTexture() {
     return canvas;
 }
 
-// TIERRA: ~71% océanos, ~29% continentes, casquetes polares
+// TIERRA: con formas reconocibles de continentes, ~71% océanos, ~29% tierra
+// Los polígonos están en (lat, lon). Se proyectan equirectangular.
+const EARTH_LANDMASSES = [
+    // Norteamérica
+    [[70, -168], [72, -140], [70, -110], [68, -82], [60, -65], [48, -55], [40, -70], [28, -80], [25, -98], [32, -117], [50, -125], [60, -148], [70, -168]],
+    // Groenlandia
+    [[83, -30], [78, -15], [70, -22], [62, -42], [70, -55], [80, -65], [83, -30]],
+    // Sudamérica
+    [[12, -82], [8, -62], [-5, -35], [-23, -40], [-35, -57], [-55, -68], [-55, -75], [-30, -71], [-10, -78], [5, -77], [12, -82]],
+    // Europa
+    [[71, 25], [68, 40], [60, 30], [55, 12], [50, 5], [43, -8], [38, 5], [40, 18], [45, 28], [55, 35], [65, 32], [71, 25]],
+    // África
+    [[37, -8], [32, 10], [30, 32], [12, 43], [-5, 40], [-15, 40], [-30, 32], [-35, 20], [-22, 14], [-5, 8], [10, -15], [20, -17], [30, -10], [37, -8]],
+    // Madagascar
+    [[-12, 49], [-15, 50], [-22, 47], [-26, 45], [-25, 43], [-15, 44], [-12, 49]],
+    // Asia (gran masa eurasiática)
+    [[72, 60], [75, 100], [70, 140], [65, 170], [55, 160], [50, 140], [40, 130], [30, 122], [20, 110], [12, 100], [8, 80], [20, 70], [25, 60], [30, 50], [40, 45], [50, 55], [60, 55], [70, 60], [72, 60]],
+    // India (subcontinente)
+    [[28, 68], [22, 72], [8, 78], [8, 82], [20, 88], [26, 88], [30, 80], [28, 68]],
+    // Indochina / Malaca
+    [[22, 95], [10, 100], [1, 103], [5, 110], [15, 109], [22, 95]],
+    // Indonesia (Borneo)
+    [[7, 109], [3, 118], [-4, 114], [-3, 108], [3, 105], [7, 109]],
+    // Sumatra
+    [[6, 95], [-6, 105], [-5, 102], [5, 95], [6, 95]],
+    // Japón
+    [[45, 142], [38, 142], [33, 136], [35, 130], [42, 132], [45, 142]],
+    // Filipinas
+    [[18, 122], [7, 125], [5, 120], [12, 118], [18, 122]],
+    // Australia
+    [[-10, 142], [-12, 130], [-15, 122], [-25, 113], [-35, 116], [-38, 142], [-32, 152], [-22, 150], [-15, 145], [-10, 142]],
+    // Tasmania
+    [[-40, 145], [-43, 148], [-43, 147], [-40, 145]],
+    // Nueva Zelanda
+    [[-34, 173], [-42, 174], [-47, 167], [-41, 172], [-34, 173]],
+    // Gran Bretaña
+    [[58, -5], [55, 1], [51, 1], [50, -5], [55, -8], [58, -5]],
+    // Irlanda
+    [[55, -10], [52, -6], [51, -10], [55, -10]],
+    // Islandia
+    [[66, -17], [63, -14], [63, -22], [66, -25], [66, -17]],
+    // Cuba
+    [[23, -82], [20, -75], [20, -78], [23, -82]],
+    // Antártida (banda continua a lo ancho)
+    [[-65, -180], [-72, -130], [-78, -100], [-80, -60], [-75, -20], [-70, 20], [-72, 60], [-70, 100], [-75, 140], [-68, 170], [-65, -180]]
+];
+
+// Point-in-polygon test (ray casting). polygon = [[lat,lon], ...]
+function pointInPolygon(lat, lon, polygon) {
+    let inside = false;
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+        const [latI, lonI] = polygon[i];
+        const [latJ, lonJ] = polygon[j];
+        // Manejar wrap-around en longitud
+        let dLon = lonI - lonJ;
+        if (Math.abs(dLon) > 180) dLon = dLon > 0 ? dLon - 360 : dLon + 360;
+        const intersect = ((latI > lat) !== (latJ > lat)) &&
+            (lon < (lonJ - lonI) * (lat - latI) / (latJ - latI) + lonI);
+        if (intersect) inside = !inside;
+    }
+    return inside;
+}
+
+function isLand(lat, lon) {
+    // Cerca de la costa: jitter para que las costas sean irregulares
+    const coastJitter = fbm(lon * 0.8, lat * 0.8, 3, 0.5) * 1.8;
+    const jitteredLat = lat + coastJitter;
+    const jitteredLon = lon + coastJitter * 0.6;
+    for (const poly of EARTH_LANDMASSES) {
+        if (pointInPolygon(jitteredLat, jitteredLon, poly)) return true;
+    }
+    return false;
+}
+
 function generateEarthTexture() {
     const canvas = createCanvas();
     const ctx = canvas.getContext('2d');
     const img = ctx.createImageData(canvas.width, canvas.height);
+    const W = canvas.width, H = canvas.height;
 
-    // Pocas y pequeñas masas de tierra para que el océano domine
-    const continents = [];
-    for (let i = 0; i < 8; i++) {
-        continents.push({
-            cx: Math.random() * canvas.width,
-            cy: canvas.height * (0.25 + Math.random() * 0.5),
-            rx: 18 + Math.random() * 35,
-            ry: 15 + Math.random() * 25,
-            rot: Math.random() * Math.PI
-        });
-    }
-    // Umbral alto para que solo el centro de cada elipse sea tierra
-    const landThreshold = 0.55;
-
-    for (let y = 0; y < canvas.height; y++) {
-        const lat = Math.abs(y / canvas.height - 0.5) * 2;
-        for (let x = 0; x < canvas.width; x++) {
-            let isLand = false;
-            for (const c of continents) {
-                const dx = (x - c.cx) * Math.cos(c.rot) + (y - c.cy) * Math.sin(c.rot);
-                const dy = -(x - c.cx) * Math.sin(c.rot) + (y - c.cy) * Math.cos(c.rot);
-                const d = (dx * dx) / (c.rx * c.rx) + (dy * dy) / (c.ry * c.ry);
-                const noise = fbm(x / 30 + c.cx, y / 30 + c.cy, 4, 0.5) * 0.4;
-                if (d + noise < landThreshold) { isLand = true; break; }
-            }
-            const noiseVal = fbm(x / 50, y / 50, 4, 0.5);
+    for (let y = 0; y < H; y++) {
+        const lat = 90 - (y / H) * 180;
+        const absLat = Math.abs(lat);
+        for (let x = 0; x < W; x++) {
+            const lon = -180 + (x / W) * 360;
+            const land = isLand(lat, lon);
+            const noiseVal = fbm(x / 40, y / 40, 4, 0.5);
+            const microNoise = fbm(x / 12, y / 12, 3, 0.5) * 0.15;
+            const t = (noiseVal + 1) * 0.5;
             let color;
-            if (lat > 0.88) {
-                color = [240, 245, 255];
-            } else if (isLand) {
-                // Tierra con variación: zonas desérticas marrones, selvas verdes, etc.
-                const t = (noiseVal + 1) * 0.5;
-                if (lat > 0.4 && t > 0.55) {
-                    // Zonas áridas (entre los 25° y 60° de latitud)
+            if (land) {
+                // Tierra: casquetes, tundra, bosques, desiertos, selvas
+                if (absLat > 85) {
+                    color = [245, 248, 255]; // casquete polar
+                } else if (absLat > 75) {
                     color = colorRamp(t, [
-                        { t: 0, color: [120, 100, 60] },
-                        { t: 0.5, color: [160, 140, 90] },
-                        { t: 1, color: [200, 170, 110] }
+                        { t: 0, color: [200, 210, 215] },
+                        { t: 1, color: [235, 240, 245] }
                     ]);
-                } else if (lat < 0.25) {
-                    // Zonas ecuatoriales: verde intenso
+                } else if (absLat > 65) {
+                    // Tundra / taiga: marrón verdoso
                     color = colorRamp(t, [
-                        { t: 0, color: [50, 95, 45] },
-                        { t: 0.5, color: [70, 125, 60] },
-                        { t: 1, color: [100, 145, 80] }
+                        { t: 0, color: [70, 90, 60] },
+                        { t: 1, color: [110, 130, 80] }
+                    ]);
+                } else if (absLat > 45) {
+                    // Templado: verde con variación
+                    color = colorRamp(t, [
+                        { t: 0, color: [60, 100, 50] },
+                        { t: 1, color: [120, 150, 80] }
+                    ]);
+                } else if (absLat > 30) {
+                    // Subtropical: mezcla verde-marrón
+                    // Algunas zonas desérticas (Sahara, Arabia, Australia interior)
+                    const desertNoise = fbm(x / 80, y / 80, 3, 0.5);
+                    if (desertNoise > 0.2) {
+                        // Desierto
+                        color = colorRamp(t, [
+                            { t: 0, color: [160, 130, 80] },
+                            { t: 1, color: [210, 180, 120] }
+                        ]);
+                    } else {
+                        color = colorRamp(t, [
+                            { t: 0, color: [80, 110, 50] },
+                            { t: 1, color: [130, 150, 80] }
+                        ]);
+                    }
+                } else if (absLat > 15) {
+                    // Tropical: verde con sabana
+                    color = colorRamp(t, [
+                        { t: 0, color: [70, 110, 50] },
+                        { t: 1, color: [110, 140, 70] }
                     ]);
                 } else {
-                    // Zonas templadas: verde moderado
+                    // Ecuatorial: verde intenso (selva)
                     color = colorRamp(t, [
-                        { t: 0, color: [70, 110, 55] },
-                        { t: 0.5, color: [100, 140, 75] },
-                        { t: 1, color: [130, 155, 95] }
+                        { t: 0, color: [40, 90, 40] },
+                        { t: 1, color: [80, 120, 60] }
                     ]);
                 }
+                // Variación de micro-detalle
+                color = color.map((c, i) => Math.max(0, Math.min(255, c + microNoise * (i === 0 ? 15 : 25))));
             } else {
-                // Océano con variación de profundidad
-                const t = (noiseVal + 1) * 0.5;
-                color = colorRamp(t, [
-                    { t: 0, color: [10, 40, 100] },
-                    { t: 0.5, color: [25, 75, 150] },
-                    { t: 1, color: [50, 120, 180] }
-                ]);
+                // Océano: profundidad variable (más oscuro lejos de costa)
+                const coastNoise = fbm(x / 30, y / 30, 3, 0.5);
+                const tOcean = (coastNoise + 1) * 0.5;
+                if (absLat > 70) {
+                    // Hielo marino cerca de los polos
+                    if (tOcean > 0.6) {
+                        color = [220, 230, 240];
+                    } else {
+                        color = colorRamp(tOcean, [
+                            { t: 0, color: [20, 50, 110] },
+                            { t: 1, color: [40, 90, 150] }
+                        ]);
+                    }
+                } else {
+                    color = colorRamp(tOcean, [
+                        { t: 0, color: [8, 35, 90] },     // abismo
+                        { t: 0.5, color: [20, 65, 130] },
+                        { t: 1, color: [50, 110, 170] }   // costa
+                    ]);
+                }
             }
             setPixel(img, x, y, color);
         }
