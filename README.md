@@ -37,15 +37,19 @@ Plataforma web educativa e interactiva para la enseñanza de conceptos fundament
 
 ---
 
-## Capturas
+## Capturas de pantalla
 
-Puedes añadir aquí capturas de pantalla del proyecto:
+### Home
 
-```text
-docs/screenshots/home.png
-docs/screenshots/sistema-solar.png
-docs/screenshots/eclipses.png
-```
+![Home](docs/screenshots/home.png)
+
+### Sistema Solar
+
+![Sistema Solar](docs/screenshots/sistema-solar.png)
+
+### Eclipses
+
+![Eclipses](docs/screenshots/eclipses.png)
 
 ---
 
