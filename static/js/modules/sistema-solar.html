@@ -118,7 +118,7 @@
                 name: 'Tierra', icon: '🌍', radius: 10, color: 0x4a90d9, orbitRadius: 100, speed: 1.0,
                 inclination: 0, diameter: '12,742 km', mass: '5.97 × 10²⁴ kg', gravity: '9.81 m/s²',
                 dayLength: '24 horas', yearLength: '365.25 días', tempMin: '-89 °C', tempMax: '58 °C',
-                moons: [{ name: 'Luna', radius: 2.7, color: 0xcccccc, orbitRadius: 22, orbitSpeed: 0.05, inclination: 5.1 }],
+                moons: [{ name: 'Luna', radius: 2.7, color: 0xcccccc, orbitRadius: 22, orbitSpeed: 0.050, inclination: 5.1 }],
                 info: 'El único planeta conocido con vida. Su atmósfera rica en nitrógeno y oxígeno, combinada con agua líquida, lo hace único en el sistema solar.'
             },
             mars: {
@@ -126,8 +126,8 @@
                 inclination: 1.8, diameter: '6,779 km', mass: '6.42 × 10²³ kg', gravity: '3.71 m/s²',
                 dayLength: '24h 37min', yearLength: '687 días', tempMin: '-143 °C', tempMax: '35 °C',
                 moons: [
-                    { name: 'Fobos', radius: 0.4, color: 0x8a7a6a, orbitRadius: 8, orbitSpeed: 0.1, inclination: 1.1 },
-                    { name: 'Deimos', radius: 0.3, color: 0x7a6a5a, orbitRadius: 14, orbitSpeed: 0.04, inclination: 1.8 }
+                    { name: 'Fobos', radius: 0.4, color: 0x8a7a6a, orbitRadius: 8, orbitSpeed: 0.760, inclination: 1.1 },
+                    { name: 'Deimos', radius: 0.3, color: 0x7a6a5a, orbitRadius: 14, orbitSpeed: 0.333, inclination: 1.8 }
                 ],
                 info: 'El planeta rojo, llamado así por el óxido de hierro de su superficie. Tiene los volcanes más grandes del sistema solar, incluido el Olympus Mons.'
             },
@@ -136,10 +136,10 @@
                 inclination: 1.3, diameter: '139,820 km', mass: '1.90 × 10²⁷ kg', gravity: '24.79 m/s²',
                 dayLength: '9h 56min', yearLength: '11.86 años', tempMin: '-145 °C', tempMax: '-108 °C',
                 moons: [
-                    { name: 'Io', radius: 1.2, color: 0xe6c87a, orbitRadius: 30, orbitSpeed: 0.06, inclination: 0.04 },
-                    { name: 'Europa', radius: 1.0, color: 0xc8c8d4, orbitRadius: 40, orbitSpeed: 0.04, inclination: 0.47 },
-                    { name: 'Ganímedes', radius: 1.7, color: 0x9a9080, orbitRadius: 55, orbitSpeed: 0.025, inclination: 0.21 },
-                    { name: 'Calisto', radius: 1.6, color: 0x6a6050, orbitRadius: 75, orbitSpeed: 0.018, inclination: 0.51 }
+                    { name: 'Io', radius: 4.5, color: 0xe6c87a, orbitRadius: 140, orbitSpeed: 0.272, inclination: 0.04 },
+                    { name: 'Europa', radius: 3.8, color: 0xc8c8d4, orbitRadius: 180, orbitSpeed: 0.179, inclination: 0.47 },
+                    { name: 'Ganímedes', radius: 5.5, color: 0x9a9080, orbitRadius: 240, orbitSpeed: 0.118, inclination: 0.21 },
+                    { name: 'Calisto', radius: 5.2, color: 0x6a6050, orbitRadius: 310, orbitSpeed: 0.071, inclination: 0.51 }
                 ],
                 info: 'El planeta más grande del sistema solar, con una masa mayor que la de todos los demás planetas juntos. Su Gran Mancha Roja es una tormenta gigante activa desde hace siglos.',
                 hasRings: true
@@ -149,10 +149,10 @@
                 inclination: 2.5, diameter: '116,460 km', mass: '5.68 × 10²⁶ kg', gravity: '10.44 m/s²',
                 dayLength: '10h 33min', yearLength: '29.46 años', tempMin: '-178 °C', tempMax: '-178 °C',
                 moons: [
-                    { name: 'Titán', radius: 1.7, color: 0xd4a060, orbitRadius: 40, orbitSpeed: 0.03, inclination: 0.3 },
-                    { name: 'Encélado', radius: 0.7, color: 0xffffff, orbitRadius: 28, orbitSpeed: 0.05, inclination: 0.0 },
-                    { name: 'Rea', radius: 0.8, color: 0xc0c0b0, orbitRadius: 50, orbitSpeed: 0.025, inclination: 0.35 },
-                    { name: 'Dione', radius: 0.75, color: 0xe0e0d0, orbitRadius: 36, orbitSpeed: 0.028, inclination: 0.02 }
+                    { name: 'Titán', radius: 5.5, color: 0xd4a060, orbitRadius: 180, orbitSpeed: 0.073, inclination: 0.3 },
+                    { name: 'Encélado', radius: 2.5, color: 0xffffff, orbitRadius: 130, orbitSpeed: 0.317, inclination: 0.0 },
+                    { name: 'Rea', radius: 2.8, color: 0xc0c0b0, orbitRadius: 220, orbitSpeed: 0.155, inclination: 0.35 },
+                    { name: 'Dione', radius: 2.6, color: 0xe0e0d0, orbitRadius: 160, orbitSpeed: 0.209, inclination: 0.02 }
                 ],
                 info: 'Famoso por sus espectaculares anillos, formados por millones de partículas de hielo y roca. Es menos denso que el agua: flotaría en un océano suficientemente grande.',
                 hasRings: true
@@ -162,10 +162,10 @@
                 inclination: 0.8, diameter: '50,724 km', mass: '8.68 × 10²⁵ kg', gravity: '8.69 m/s²',
                 dayLength: '17h 14min', yearLength: '84 años', tempMin: '-224 °C', tempMax: '-216 °C',
                 moons: [
-                    { name: 'Titania', radius: 0.7, color: 0xb0b0b0, orbitRadius: 30, orbitSpeed: 0.02, inclination: 0.34 },
-                    { name: 'Oberón', radius: 0.65, color: 0x909090, orbitRadius: 40, orbitSpeed: 0.018, inclination: 0.1 },
-                    { name: 'Umbriel', radius: 0.5, color: 0x707070, orbitRadius: 22, orbitSpeed: 0.025, inclination: 0.13 },
-                    { name: 'Ariel', radius: 0.55, color: 0xc0c0c0, orbitRadius: 18, orbitSpeed: 0.03, inclination: 0.31 }
+                    { name: 'Titania', radius: 2.8, color: 0xb0b0b0, orbitRadius: 75, orbitSpeed: 0.105, inclination: 0.34 },
+                    { name: 'Oberón', radius: 2.6, color: 0x909090, orbitRadius: 95, orbitSpeed: 0.080, inclination: 0.1 },
+                    { name: 'Umbriel', radius: 2.0, color: 0x707070, orbitRadius: 58, orbitSpeed: 0.163, inclination: 0.13 },
+                    { name: 'Ariel', radius: 2.2, color: 0xc0c0c0, orbitRadius: 50, orbitSpeed: 0.220, inclination: 0.31 }
                 ],
                 info: 'Gira "tumbado" sobre su lado, con una inclinación axial de 97,8°. Esto provoca que sus polos reciban luz solar durante décadas.',
                 hasRings: true
@@ -175,8 +175,8 @@
                 inclination: 1.8, diameter: '49,244 km', mass: '1.02 × 10²⁶ kg', gravity: '11.15 m/s²',
                 dayLength: '16h 6min', yearLength: '164.8 años', tempMin: '-218 °C', tempMax: '-200 °C',
                 moons: [
-                    { name: 'Tritón', radius: 0.9, color: 0xd0d0e0, orbitRadius: 28, orbitSpeed: -0.045, inclination: 157 },
-                    { name: 'Nereida', radius: 0.3, color: 0x808090, orbitRadius: 50, orbitSpeed: 0.008, inclination: 7.23 }
+                    { name: 'Tritón', radius: 3.2, color: 0xd0d0e0, orbitRadius: 65, orbitSpeed: -0.133, inclination: 157 },
+                    { name: 'Nereida', radius: 1.2, color: 0x808090, orbitRadius: 100, orbitSpeed: 0.011, inclination: 7.23 }
                 ],
                 info: 'El planeta más ventoso, con vientos que superan los 2,000 km/h. Tritón, su luna más grande, orbita en dirección retrógrada y se acerca lentamente a Neptuno.',
                 hasRings: true
@@ -411,7 +411,12 @@
 
             if (targetPlanet && planets[targetPlanet]) {
                 const target = planets[targetPlanet].position.clone();
-                const zoomDist = planetsData[targetPlanet].radius * 4 + 30;
+                const pData = planetsData[targetPlanet];
+                // Distancia: que enmarque el planeta Y todas sus lunas
+                const maxMoonOrbit = pData.moons && pData.moons.length
+                    ? Math.max(...pData.moons.map(m => m.orbitRadius))
+                    : 0;
+                const zoomDist = Math.max(pData.radius * 4 + 30, maxMoonOrbit * 1.8 + 40);
                 const newX = target.x + zoomDist;
                 const newY = zoomDist * 0.4;
                 const newZ = target.z + zoomDist;
