@@ -56,10 +56,10 @@
 <body>
     <div id="container"></div>
     <div id="controls">
-        <h3>🌑 Controles <button id="back-btn" style="float:right;background:transparent;border:1px solid #888;color:#fff;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:0.8rem;">← Volver</button></h3>
+        <h3>🌑 Controles</h3>
         <div class="control-group">
             <label>Velocidad orbital</label>
-            <input type="range" id="speed-slider" min="0" max="300" value="20">
+            <input type="range" id="speed-slider" min="0" max="100" value="20">
             <div style="text-align: right; font-size: 0.8rem; color: #888;">x<span id="speed-value">20</span></div>
         </div>
         <div class="control-group">
@@ -82,6 +82,10 @@
         <div class="btn-row">
             <button class="btn active" id="btn-inclination">Inclinación 5°</button>
         </div>
+        <div class="btn-row">
+            <button class="btn active" id="btn-view-global">🌐 Vista global</button>
+            <button class="btn" id="btn-view-follow">🌍 Seguir Tierra</button>
+        </div>
     </div>
     <div id="info-panel">
         <h3>¿Por qué no hay eclipse cada mes?</h3>
@@ -92,7 +96,7 @@
             <div class="eclipse-detail" id="eclipse-detail">La Luna no está alineada con el Sol y la Tierra.</div>
         </div>
     </div>
-    <div id="instructions">🖱️ Arrastra para rotar • Scroll para zoom</div>
+    <div id="instructions">🖱️ Izq: rotar • Der: desplazar • Scroll: zoom</div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="../utils/textures.js"></script>
     <script src="../utils/space.js"></script>
@@ -186,32 +190,59 @@
         const shadowGroup = new THREE.Group();
         scene.add(shadowGroup);
 
-        // Cono de umbra (orientado en cada frame)
+        // Cono de umbra (sombra interior, eclipse total)
         // Lo hacemos más ancho que en la realidad para que sea visible
-        const umbraRadius = MOON_RADIUS * 1.6;
+        const umbraRadius = MOON_RADIUS * 1.4;
         const umbraGeo = new THREE.ConeGeometry(umbraRadius, UMBRA_LENGTH, 32, 1, true);
         const umbraMat = new THREE.MeshBasicMaterial({
-            color: 0x000000, transparent: true, opacity: 0.75, side: THREE.DoubleSide
+            color: 0x000000, transparent: true, opacity: 0.92, side: THREE.DoubleSide,
+            depthWrite: false
         });
         const umbra = new THREE.Mesh(umbraGeo, umbraMat);
-        // El cono de Three.js tiene el ápice en +Y y la base en -Y
-        // Para tener la base en el origen y el ápice en +Z, rotamos -PI/2 alrededor de X
-        // y trasladamos en +Z la mitad de la longitud
+        // El cono de Three.js tiene el ápice en +Y y la base en -Y.
+        // En Object3D.lookAt(target), el +Z local apunta HACIA el target (no -Z como en una cámara).
+        // Como hacemos lookAt(sun), el +Z del shadowGroup queda hacia el Sol.
+        // Queremos que la sombra se proyecte en -Z (alejándose del Sol):
+        // rotamos -PI/2 (apex hacia -Z) y trasladamos -L/2 para que la base quede en el origen
         umbra.rotation.x = -Math.PI / 2;
-        umbra.position.z = UMBRA_LENGTH / 2;
+        umbra.position.z = -UMBRA_LENGTH / 2;
         shadowGroup.add(umbra);
+
+        // Mancha de umbra sobre la superficie terrestre: un disco oscuro que sigue
+        // la intersección de la línea Sol-Luna con la Tierra
+        const umbraSpotRadius = EARTH_RADIUS * 0.45;
+        const umbraSpotGeo = new THREE.CircleGeometry(umbraSpotRadius, 48);
+        const umbraSpotMat = new THREE.MeshBasicMaterial({
+            color: 0x000000, transparent: true, opacity: 0.85, side: THREE.DoubleSide,
+            depthWrite: false, depthTest: true
+        });
+        const umbraSpot = new THREE.Mesh(umbraSpotGeo, umbraSpotMat);
+        scene.add(umbraSpot);
+        umbraSpot.visible = false;
 
         // Penumbra: cono más ancho (no llega a cerrarse)
         const penumbraLength = UMBRA_LENGTH * 1.4;
-        const penumbraRadius = MOON_RADIUS * 3.5;
+        const penumbraRadius = MOON_RADIUS * 3.2;
         const penumbraGeo = new THREE.ConeGeometry(penumbraRadius, penumbraLength, 32, 1, true);
         const penumbraMat = new THREE.MeshBasicMaterial({
-            color: 0x4444aa, transparent: true, opacity: 0.25, side: THREE.DoubleSide
+            color: 0x1a1a2a, transparent: true, opacity: 0.35, side: THREE.DoubleSide,
+            depthWrite: false
         });
         const penumbra = new THREE.Mesh(penumbraGeo, penumbraMat);
         penumbra.rotation.x = -Math.PI / 2;
-        penumbra.position.z = penumbraLength / 2;
+        penumbra.position.z = -penumbraLength / 2;
         shadowGroup.add(penumbra);
+
+        // Mancha de penumbra sobre la Tierra: disco más grande y claro que la umbra
+        const penumbraSpotRadius = EARTH_RADIUS * 1.1;
+        const penumbraSpotGeo = new THREE.CircleGeometry(penumbraSpotRadius, 64);
+        const penumbraSpotMat = new THREE.MeshBasicMaterial({
+            color: 0x05050a, transparent: true, opacity: 0.55, side: THREE.DoubleSide,
+            depthWrite: false, depthTest: true
+        });
+        const penumbraSpot = new THREE.Mesh(penumbraSpotGeo, penumbraSpotMat);
+        scene.add(penumbraSpot);
+        penumbraSpot.visible = false;
 
         // Indicador de dirección: línea amarilla brillante desde la Luna hacia la Tierra
         const dirIndicatorGeo = new THREE.BufferGeometry();
@@ -219,12 +250,11 @@
         const dirIndicator = new THREE.Line(dirIndicatorGeo, dirIndicatorMat);
         shadowGroup.add(dirIndicator);
 
-        // Flecha: cono pequeño al final de la línea indicadora
+        // Flecha: cono pequeño al final de la línea indicadora (apunta en -Z = away from Sun)
         const arrowGeo = new THREE.ConeGeometry(0.6, 2, 8);
         const arrowMat = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
         const arrowHead = new THREE.Mesh(arrowGeo, arrowMat);
-        // Por defecto el cono apunta en +Y. Lo rotamos para que apunte en +Z
-        arrowHead.rotation.x = Math.PI / 2;
+        arrowHead.rotation.x = -Math.PI / 2;
         shadowGroup.add(arrowHead);
 
         // Etiquetas
@@ -243,14 +273,6 @@
         labels.moon.position.set(0, MOON_RADIUS + 3, 0);
         moonOrbitGroup.add(labels.moon);
         Object.values(labels).forEach(l => l.visible = false);
-
-        // Punto en la superficie terrestre para ver el eclipse
-        const surfacePoint = new THREE.Mesh(
-            new THREE.SphereGeometry(0.5, 12, 12),
-            new THREE.MeshBasicMaterial({ color: 0xff3333 })
-        );
-        surfacePoint.position.set(EARTH_RADIUS * 0.95, 0, 0);
-        earthGroup.add(surfacePoint);
 
         // Vista desde la superficie durante el eclipse
         const sunCorona = new THREE.Mesh(
@@ -323,6 +345,8 @@
             showShadow = !showShadow;
             umbra.visible = showShadow;
             penumbra.visible = showShadow;
+            umbraSpot.visible = false;  // se reactiva en el animate si hay eclipse
+            penumbraSpot.visible = false;
             document.getElementById('btn-shadow').classList.toggle('active', showShadow);
         });
 
@@ -338,9 +362,36 @@
             document.getElementById('btn-inclination').classList.toggle('active', showInclination);
         });
 
+        // Modos de vista rápida: 'global' (target = Sol, vista amplia), 'follow-earth' (target = Tierra, vista cercana)
+        let viewMode = 'manual';
+        const btnGlobal = document.getElementById('btn-view-global');
+        const btnFollow = document.getElementById('btn-view-follow');
+
+        function setViewMode(mode) {
+            viewMode = mode;
+            btnGlobal.classList.toggle('active', mode === 'global');
+            btnFollow.classList.toggle('active', mode === 'follow-earth');
+            camControls.stopContinuous();
+            camControls.setActive(true);
+            if (mode === 'global') {
+                camControls.setTarget(new THREE.Vector3(0, 0, 0));
+                camControls.setView(0, 0.5, 500);
+            } else if (mode === 'follow-earth') {
+                camControls.setTarget(() => earthGroup.position);
+                camControls.setView(0, 0.5, 60);
+                camControls.startContinuous();
+            } else {
+                camControls.setTarget(new THREE.Vector3(0, 0, 0));
+            }
+        }
+
+        btnGlobal.addEventListener('click', () => setViewMode(viewMode === 'global' ? 'manual' : 'global'));
+        btnFollow.addEventListener('click', () => setViewMode(viewMode === 'follow-earth' ? 'manual' : 'follow-earth'));
+
         document.getElementById('view-select').addEventListener('change', e => {
-            camControls.setManual(false);
             const view = e.target.value;
+            camControls.stopContinuous();
+            camControls.setActive(false);
             if (view === 'top') {
                 camera.position.set(0, 600, 0);
                 camera.lookAt(0, 0, 0);
@@ -348,15 +399,11 @@
                 camera.position.set(EARTH_ORBIT * 1.2, 50, 0);
                 camera.lookAt(0, 0, 0);
             } else if (view === 'earth-surface') {
-                camControls.setManual(false);
-                // Posición de la superficie terrestre orientada hacia la Luna
                 const moonWorld = new THREE.Vector3();
                 moon.getWorldPosition(moonWorld);
                 const dir = moonWorld.clone().sub(earthGroup.position).normalize();
                 camera.position.copy(earthGroup.position).addScaledVector(dir, EARTH_RADIUS * 1.5);
                 camera.lookAt(moonWorld);
-            } else {
-                camControls.setManual(true);
             }
         });
 
@@ -403,24 +450,55 @@
                 moon.position.y = 0;
             }
 
-            // Rotación diaria
-            earth.rotation.y += 0.005;
-            moon.rotation.y += 0.01;
+            // Rotación diaria (también se pausa)
+            if (!paused) {
+                earth.rotation.y += 0.005;
+                moon.rotation.y += 0.01;
+            }
 
             // Posicionar y orientar el cono de sombra
             // La sombra va desde la Luna, en dirección opuesta al Sol (hacia la Tierra)
             const moonWorld = new THREE.Vector3();
             moon.getWorldPosition(moonWorld);
             shadowGroup.position.copy(moonWorld);
-            // Para que el cono (ápice en +Z) apunte hacia la Tierra, hacemos lookAt al Sol
-            // (así -Z queda hacia el Sol, +Z queda hacia la Tierra)
+            // En Object3D.lookAt(target), el +Z local apunta HACIA el target.
+            // Como queremos que el cono se extienda en la dirección opuesta al Sol,
+            // hacemos lookAt al Sol y colocamos el ápice en -Z (away from Sun).
             shadowGroup.lookAt(sun.position);
 
-            // Indicador de dirección: línea desde la Luna hacia la Tierra
-            const indicatorEnd = new THREE.Vector3(0, 0, UMBRA_LENGTH * 1.1);
+            // Posicionar las manchas de umbra y penumbra sobre la superficie terrestre.
+            // Se colocan en el punto sub-lunar (justo bajo la Luna) y se orientan
+            // hacia la Luna, con la umbra más pequeña y oscura que la penumbra.
+            const earthWorld = new THREE.Vector3();
+            earthGroup.getWorldPosition(earthWorld);
+            const moonDir = moonWorld.clone().sub(earthWorld).normalize();
+            // Distancia angular Sol-Luna vista desde la Tierra
+            const sunDir = sun.position.clone().sub(earthWorld).normalize();
+            const dotSunMoon = THREE.MathUtils.clamp(sunDir.dot(moonDir), -1, 1);
+            const angleSunMoon = Math.acos(dotSunMoon) * 180 / Math.PI;
+            // Solo mostramos las manchas si el ángulo es pequeño (cerca del eclipse)
+            const moonAngularSize = Math.atan(MOON_RADIUS / moonWorld.distanceTo(earthWorld)) * 180 / Math.PI;
+            const sunAngularSize = Math.atan(SUN_RADIUS / sun.position.distanceTo(earthWorld)) * 180 / Math.PI;
+            const showSpots = showShadow && angleSunMoon < (moonAngularSize + sunAngularSize + 1);
+            umbraSpot.visible = showSpots;
+            penumbraSpot.visible = showSpots;
+            if (showSpots) {
+                // Posición del centro de las manchas en la superficie (sub-lunar)
+                const surfacePos = earthWorld.clone().addScaledVector(moonDir, EARTH_RADIUS * 1.005);
+                umbraSpot.position.copy(surfacePos);
+                penumbraSpot.position.copy(surfacePos);
+                // Orientar el disco tangente a la superficie: el +Z del CircleGeometry
+                // debe apuntar hacia fuera de la Tierra (= moonDir). lookAt(earthWorld)
+                // hace que el -Z apunte al centro, luego +Z apunta hacia fuera ✓
+                umbraSpot.lookAt(earthWorld);
+                penumbraSpot.lookAt(earthWorld);
+            }
+
+            // Indicador de dirección: línea desde la Luna hacia la Tierra (en -Z = away from Sun)
+            const indicatorEnd = new THREE.Vector3(0, 0, -UMBRA_LENGTH * 1.1);
             dirIndicator.geometry.setFromPoints([new THREE.Vector3(0, 0, 0), indicatorEnd]);
             // Flecha al final de la línea
-            arrowHead.position.set(0, 0, UMBRA_LENGTH * 1.1 + 1);
+            arrowHead.position.set(0, 0, -UMBRA_LENGTH * 1.1 + 1);
 
             // Actualizar vista si es "superficie terrestre"
             const view = document.getElementById('view-select').value;
@@ -443,7 +521,7 @@
 
         updateEclipseStatus();
         animate();
-        setupBackButton('back-btn');
+        // Botón "Volver" está en el index.html, no necesitamos setup aquí
     </script>
 </body>
 </html>

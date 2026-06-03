@@ -43,7 +43,8 @@ function loadApp(appName) {
     const container = document.getElementById('app-container');
     const iframe = document.getElementById('app-frame');
     container.classList.remove('hidden');
-    iframe.src = `static/js/modules/${appName}.html`;
+    // Cache-busting para evitar que el iframe muestre HTML antiguo en caché
+    iframe.src = `static/js/modules/${appName}.html?v=${Date.now()}`;
     cancelAnimationFrame(animationFrame);
 }
 

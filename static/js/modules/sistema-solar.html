@@ -56,7 +56,7 @@
 <body>
     <div id="container"></div>
         <div id="controls">
-            <h3>☀️ Controles <button id="back-btn" style="float:right;background:transparent;border:1px solid #888;color:#fff;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:0.8rem;">← Volver</button></h3>
+            <h3>☀️ Controles</h3>
         <div class="control-group">
             <label>Velocidad orbital</label>
             <input type="range" id="speed-slider" min="0" max="200" value="50">
@@ -431,7 +431,7 @@
         });
 
         animate();
-        setupBackButton('back-btn');
+        // Botón "Volver" está en el index.html, no necesitamos setup aquí
     </script>
 </body>
 </html>
