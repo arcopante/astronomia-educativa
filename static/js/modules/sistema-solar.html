@@ -357,14 +357,32 @@
         });
 
         document.getElementById('planet-select').addEventListener('change', e => {
-            if (e.target.value) showPlanetInfo(e.target.value);
-            else {
+            const key = e.target.value;
+            if (key) {
+                showPlanetInfo(key);
+                focusPlanet(key);
+            } else {
                 document.getElementById('planet-info').style.display = 'none';
                 targetPlanet = null;
-                camControls.setManual(true);
+                camControls.stopContinuous();
+                camControls.setActive(true);
+                camControls.setTarget(new THREE.Vector3(0, 0, 0));
                 camControls.setDistance(1800);
             }
         });
+
+        function focusPlanet(key) {
+            const pData = planetsData[key];
+            const maxMoonOrbit = pData.moons && pData.moons.length
+                ? Math.max(...pData.moons.map(m => m.orbitRadius))
+                : 0;
+            const zoomDist = Math.max(pData.radius * 4 + 30, maxMoonOrbit * 1.8 + 40);
+            targetPlanet = key;
+            camControls.setActive(true);
+            camControls.setTarget(() => planets[key].position.clone());
+            camControls.setView(Math.PI / 2.5, Math.PI / 3, zoomDist);
+            camControls.startContinuous();
+        }
 
         function showPlanetInfo(key) {
             const data = planetsData[key];
@@ -397,10 +415,11 @@
 
             if (!paused) {
                 sun.rotation.y += 0.001;
+                const effectiveSpeed = Math.max(0, speedMultiplier);
                 Object.values(planets).forEach(planet => {
                     const data = planet.userData.data;
                     const inclRad = data.inclination * Math.PI / 180;
-                    planet.userData.angle += data.speed * speedMultiplier * 0.0001;
+                    planet.userData.angle += data.speed * effectiveSpeed * 0.0001;
                     planet.position.set(
                         Math.cos(planet.userData.angle) * data.orbitRadius,
                         Math.sin(planet.userData.angle) * data.orbitRadius * Math.sin(inclRad),
@@ -410,7 +429,7 @@
 
                     if (planet.userData.moons) {
                         planet.userData.moons.forEach((moon) => {
-                            moon.userData.angle += moon.userData.orbitSpeed * speedMultiplier * 0.001;
+                            moon.userData.angle += moon.userData.orbitSpeed * effectiveSpeed * 0.001;
                             const moonInclRad = moon.userData.inclination * Math.PI / 180;
                             moon.position.set(
                                 Math.cos(moon.userData.angle) * moon.userData.orbitRadius,
@@ -423,20 +442,10 @@
             }
 
             if (targetPlanet && planets[targetPlanet]) {
-                const target = planets[targetPlanet].position.clone();
-                const pData = planetsData[targetPlanet];
-                // Distancia: que enmarque el planeta Y todas sus lunas
-                const maxMoonOrbit = pData.moons && pData.moons.length
-                    ? Math.max(...pData.moons.map(m => m.orbitRadius))
-                    : 0;
-                const zoomDist = Math.max(pData.radius * 4 + 30, maxMoonOrbit * 1.8 + 40);
-                const newX = target.x + zoomDist;
-                const newY = zoomDist * 0.4;
-                const newZ = target.z + zoomDist;
-                camera.position.x += (newX - camera.position.x) * 0.05;
-                camera.position.y += (newY - camera.position.y) * 0.05;
-                camera.position.z += (newZ - camera.position.z) * 0.05;
-                camera.lookAt(target);
+                const planetMesh = planets[targetPlanet];
+                if (planetMesh.userData.label && planetMesh.userData.label.material) {
+                    planetMesh.userData.label.material.opacity = showLabels ? 1 : 0;
+                }
             }
 
             renderer.render(scene, camera);
