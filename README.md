@@ -26,6 +26,19 @@ Plataforma web educativa e interactiva para la enseñanza de conceptos fundament
 - Explicación visual de las mareas.
 - Relación entre posiciones orbitales y variaciones del nivel del mar.
 
+### 🌙 Fases Lunares
+- Visualización 3D del sistema Sol-Tierra-Luna.
+- Explicación de las 8 fases del ciclo lunar.
+- Vista desde la Tierra con representación del aspecto de la Luna.
+- Controles para saltar a cada fase.
+
+### ☄️ Cometas
+- 5 cometas famosos: Halley, Hale-Bopp, Hyakutake, NEOWISE y Encke.
+- Órbitas elípticas reales calculadas con la ecuación de Kepler.
+- Visualización de la cola apuntando lejos del Sol.
+- Fecha y distancia al Sol actualizadas en tiempo real.
+- Predicción de próximos perihelios.
+
 ---
 
 ## Tecnologías utilizadas
@@ -92,7 +105,9 @@ astronomia-educativa/
 │   │   │   ├── sistema-solar.html
 │   │   │   ├── eclipses.html
 │   │   │   ├── estaciones.html
-│   │   │   └── mareas.html
+│   │   │   ├── mareas.html
+│   │   │   ├── fases-lunares.html
+│   │   │   └── cometas.html
 │   │   └── utils/
 │   └── textures/
 └── README.md

@@ -71,7 +71,7 @@
         <h3>🌙 Controles</h3>
         <div class="control-group">
             <label>Velocidad orbital</label>
-            <input type="range" id="speed-slider" min="0" max="100" value="20">
+            <input type="range" id="speed-slider" min="1" max="50" value="5">
             <div style="text-align: right; font-size: 0.8rem; color: #888;">x<span id="speed-value">20</span></div>
         </div>
         <div class="control-group">
@@ -179,7 +179,7 @@
         earthGroup.add(earthAtmo);
 
         const moonOrbitGroup = new THREE.Group();
-        moonOrbitGroup.rotation.z = MOON_INCL;
+        moonOrbitGroup.rotation.x = MOON_INCL;
         earthGroup.add(moonOrbitGroup);
 
         const moon = new THREE.Mesh(
@@ -222,9 +222,8 @@
                 new THREE.RingGeometry(MOON_DIST - 0.5, MOON_DIST + 0.5, 32),
                 new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide, transparent: true, opacity: 0.25 })
             );
-            ring.rotation.x = Math.PI / 2;
             ring.rotation.z = -angle;
-            earthGroup.add(ring);
+            moonOrbitGroup.add(ring);
             return ring;
         };
         const newMarker = mkOrbitMarker(0, 0x5566aa);
@@ -239,13 +238,14 @@
         const trailGeo = new THREE.BufferGeometry();
         const trailPositions = new Float32Array(trailMax * 3);
         trailGeo.setAttribute('position', new THREE.BufferAttribute(trailPositions, 3));
-        const trailMat = new THREE.LineBasicMaterial({ color: 0x88aaff, transparent: true, opacity: 0.6 });
+        const trailMat = new THREE.LineBasicMaterial({ color: 0x88aaff, transparent: true, opacity: 0.0 });
         const trail = new THREE.Line(trailGeo, trailMat);
         earthGroup.add(trail);
         trail.visible = false;
+        moonTrail.length = 0;
 
         let paused = false;
-        let speedMultiplier = 20;
+        let speedMultiplier = 5;
         let moonAngle = 0;
         let viewMode = 'perspective';
         let showOrbit = true;
@@ -253,14 +253,14 @@
         let showLabels = false;
 
         const phaseInfo = {
-            new: { name: 'Luna nueva', icon: '🌑', explanation: 'La Luna está entre la Tierra y el Sol. La cara iluminada mira hacia el Sol y la cara que vemos desde la Tierra queda en sombra. La Luna es invisible desde la Tierra (o solo se ve como un tenue resplandor ceniciento).' },
-            waxing-crescent: { name: 'Creciente', icon: '🌒', explanation: 'Una pequeña porción del lado iluminado empieza a ser visible desde la Tierra. La Luna se aleja del Sol en el cielo y la parte iluminada crece noche tras noche.' },
-            q1: { name: 'Cuarto creciente', icon: '🌓', explanation: 'Exactamente la mitad del disco está iluminada. La Luna está 90° al este del Sol y se ve alta en el cielo al atardecer, ocultándose hacia la medianoche.' },
-            waxing-gibbous: { name: 'Gibosa creciente', icon: '🌔', explanation: 'Más de la mitad del disco está iluminado pero la Luna aún no está llena. La forma iluminada es gibosa (con joroba): casi circular pero con un borde oscuro.' },
-            full: { name: 'Luna llena', icon: '🌕', explanation: 'La Luna está en el lado opuesto al Sol, con la Tierra en medio. Toda la cara visible queda iluminada. La Luna sale al atardecer y se pone al amanecer.' },
-            waning-gibbous: { name: 'Gibosa menguante', icon: '🌖', explanation: 'Tras la luna llena, la parte iluminada empieza a decrecer. La Luna sale cada vez más tarde por la noche y la porción iluminada se reduce por el lado izquierdo.' },
-            q3: { name: 'Cuarto menguante', icon: '🌗', explanation: 'La mitad del disco está iluminada. La Luna está 90° al oeste del Sol y se ve alta en el cielo al amanecer.' },
-            waning-crescent: { name: 'Menguante', icon: '🌘', explanation: 'Solo queda un delgado creciente iluminado, que se reduce noche tras noche. La Luna se acerca al Sol en el cielo y pronto será de nuevo luna nueva.' }
+            'new': { name: 'Luna nueva', icon: '🌑', explanation: 'La Luna está entre la Tierra y el Sol. La cara iluminada mira hacia el Sol y la cara que vemos desde la Tierra queda en sombra. La Luna es invisible desde la Tierra (o solo se ve como un tenue resplandor ceniciento).' },
+            'waxing-crescent': { name: 'Creciente', icon: '🌒', explanation: 'Una pequeña porción del lado iluminado empieza a ser visible desde la Tierra. La Luna se aleja del Sol en el cielo y la parte iluminada crece noche tras noche.' },
+            'q1': { name: 'Cuarto creciente', icon: '🌓', explanation: 'Exactamente la mitad del disco está iluminada. La Luna está 90° al este del Sol y se ve alta en el cielo al atardecer, ocultándose hacia la medianoche.' },
+            'waxing-gibbous': { name: 'Gibosa creciente', icon: '🌔', explanation: 'Más de la mitad del disco está iluminado pero la Luna aún no está llena. La forma iluminada es gibosa (con joroba): casi circular pero con un borde oscuro.' },
+            'full': { name: 'Luna llena', icon: '🌕', explanation: 'La Luna está en el lado opuesto al Sol, con la Tierra en medio. Toda la cara visible queda iluminada. La Luna sale al atardecer y se pone al amanecer.' },
+            'waning-gibbous': { name: 'Gibosa menguante', icon: '🌖', explanation: 'Tras la luna llena, la parte iluminada empieza a decrecer. La Luna sale cada vez más tarde por la noche y la porción iluminada se reduce por el lado izquierdo.' },
+            'q3': { name: 'Cuarto menguante', icon: '🌗', explanation: 'La mitad del disco está iluminada. La Luna está 90° al oeste del Sol y se ve alta en el cielo al amanecer.' },
+            'waning-crescent': { name: 'Menguante', icon: '🌘', explanation: 'Solo queda un delgado creciente iluminado, que se reduce noche tras noche. La Luna se acerca al Sol en el cielo y pronto será de nuevo luna nueva.' }
         };
 
         function getPhase(angle) {
@@ -279,7 +279,7 @@
             const a = ((angle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
             const phaseAngle = a;
             const cosA = Math.cos(phaseAngle);
-            const illumination = (1 + cosA) / 2;
+            const illumination = (1 - cosA) / 2;
             const moonAge = a / (2 * Math.PI) * SYNODIC_MONTH;
             return { illumination, moonAge, phaseAngle };
         }
@@ -287,59 +287,205 @@
         function drawMoonInset(angle) {
             const canvas = document.getElementById('moon-view');
             const ctx = canvas.getContext('2d');
-            const w = canvas.width, h = canvas.height;
-            ctx.clearRect(0, 0, w, h);
-            const cx = w / 2, cy = h / 2;
-            const R = Math.min(w, h) * 0.4;
+            const W = canvas.width, H = canvas.height;
+            ctx.clearRect(0, 0, W, H);
+            const cx = W / 2, cy = H / 2;
+            const R = Math.min(W, H) * 0.4;
 
-            ctx.fillStyle = '#1a1a2a';
-            ctx.fillRect(0, 0, w, h);
+            ctx.fillStyle = '#0a0a14';
+            ctx.fillRect(0, 0, W, H);
 
-            const data = getPhaseData(angle);
-            const cosA = data.cosA = Math.cos(angle);
+            const cosT = Math.cos(angle);
+            const sinT = Math.sin(angle);
+            const sunOnRight = sinT > 0;
 
-            const darkColor = '#0a0a14';
-            const lightColor = '#e8e4d4';
-
-            ctx.fillStyle = darkColor;
+            ctx.fillStyle = '#0a0a14';
             ctx.beginPath();
             ctx.arc(cx, cy, R, 0, 2 * Math.PI);
             ctx.fill();
 
-            if (Math.abs(cosA) > 0.998) {
-                if (cosA > 0) {
-                    ctx.fillStyle = lightColor;
-                    ctx.beginPath();
-                    ctx.arc(cx, cy, R, 0, 2 * Math.PI);
-                    ctx.fill();
-                }
-            } else {
-                const ellipseX = R * cosA;
-                const ellipseY = R;
-                ctx.fillStyle = lightColor;
+            if (cosT < -0.999) {
+                ctx.fillStyle = '#e8e4d4';
                 ctx.beginPath();
-                ctx.arc(cx, cy, R, Math.PI / 2, 3 * Math.PI / 2, false);
-                ctx.ellipse(cx, cy, Math.abs(ellipseX), ellipseY, 0, Math.PI / 2, 3 * Math.PI / 2, cosA < 0);
-                ctx.closePath();
+                ctx.arc(cx, cy, R, 0, 2 * Math.PI);
+                ctx.fill();
+            } else if (cosT < 0.999) {
+                ctx.fillStyle = '#e8e4d4';
+                const strips = 90;
+                for (let i = 0; i <= strips; i++) {
+                    const y = cy - R + (2 * R * i / strips);
+                    const dy = y - cy;
+                    if (Math.abs(dy) > R) continue;
+                    const halfChord = Math.sqrt(Math.max(0, R * R - dy * dy));
+                    const t = R * Math.abs(cosT) * Math.sqrt(Math.max(0, 1 - (dy * dy) / (R * R)));
+                    let xLeft, xRight;
+                    if (cosT < -0.005) {
+                        if (sunOnRight) {
+                            xLeft = cx - t;
+                            xRight = cx + halfChord;
+                        } else {
+                            xLeft = cx - halfChord;
+                            xRight = cx + t;
+                        }
+                    } else if (sunOnRight) {
+                        xLeft = cx + t;
+                        xRight = cx + halfChord;
+                    } else {
+                        xLeft = cx - halfChord;
+                        xRight = cx - t;
+                    }
+                    if (xRight > xLeft) {
+                        ctx.fillRect(xLeft, y - 1, xRight - xLeft, 2);
+                    }
+                }
+
+                ctx.fillStyle = 'rgba(180,180,200,0.18)';
+                ctx.beginPath();
+                ctx.arc(cx, cy, R, 0, 2 * Math.PI);
                 ctx.fill();
             }
 
-            ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+            ctx.strokeStyle = 'rgba(255,255,255,0.35)';
             ctx.lineWidth = 1;
             ctx.beginPath();
             ctx.arc(cx, cy, R, 0, 2 * Math.PI);
             ctx.stroke();
 
-            const sunDir2D = (angle < Math.PI) ? -1 : 1;
-            const sunX = cx + sunDir2D * (R + 12);
-            ctx.fillStyle = '#ffcc44';
-            ctx.beginPath();
-            ctx.arc(sunX, cy, 5, 0, 2 * Math.PI);
-            ctx.fill();
-            ctx.fillStyle = 'rgba(255,204,68,0.2)';
-            ctx.beginPath();
-            ctx.arc(sunX, cy, 9, 0, 2 * Math.PI);
-            ctx.fill();
+            if (Math.abs(sinT) > 0.05) {
+                const sunX = cx + (sunOnRight ? 1 : -1) * (R + 16);
+                ctx.fillStyle = '#ffcc44';
+                ctx.beginPath();
+                ctx.arc(sunX, cy, 5, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.fillStyle = 'rgba(255,204,68,0.18)';
+                ctx.beginPath();
+                ctx.arc(sunX, cy, 10, 0, 2 * Math.PI);
+                ctx.fill();
+            }
         }
+
+        function updateInfoPanel() {
+            const phaseKey = getPhase(moonAngle);
+            const phase = phaseInfo[phaseKey];
+            const data = getPhaseData(moonAngle);
+
+            document.getElementById('phase-title').innerHTML = `${phase.icon} ${phase.name}`;
+            document.getElementById('phase-date').innerHTML = `Día <strong>${data.moonAge.toFixed(1)}</strong> del ciclo sinódico · <strong>${(SYNODIC_MONTH - data.moonAge).toFixed(1)}</strong> días hasta ${phaseInfo.full.icon === '🌕' ? 'el ciclo' : 'próx. fase'}`;
+            document.getElementById('phase-explanation').textContent = phase.explanation;
+            document.getElementById('data-illum').textContent = `${(data.illumination * 100).toFixed(0)}%`;
+            document.getElementById('data-age').textContent = `${data.moonAge.toFixed(1)} d`;
+            document.getElementById('phase-name').textContent = phase.name;
+
+            drawMoonInset(moonAngle);
+        }
+
+        function setMoonAngle(target) {
+            moonAngle = target;
+            const x = MOON_DIST * Math.cos(moonAngle);
+            const y = MOON_DIST * Math.sin(moonAngle);
+            moon.position.set(x, y, 0);
+            updateInfoPanel();
+        }
+
+        function applyView() {
+            if (viewMode === 'top') {
+                camControls.stopContinuous();
+                camControls.setActive(true);
+                camControls.setTarget(new THREE.Vector3(0, 0, 0));
+                camControls.setView(Math.PI / 2, 0.001, 280);
+            } else if (viewMode === 'earth') {
+                camControls.setActive(false);
+            } else {
+                camControls.setActive(true);
+                camControls.stopContinuous();
+                camControls.setTarget(new THREE.Vector3(0, 0, 0));
+                camControls.setView(Math.PI / 2.5, Math.PI / 3, 280);
+            }
+        }
+
+        document.getElementById('speed-slider').addEventListener('input', e => {
+            speedMultiplier = parseInt(e.target.value);
+            document.getElementById('speed-value').textContent = speedMultiplier;
+        });
+
+        document.getElementById('btn-pause').addEventListener('click', () => {
+            paused = !paused;
+            document.getElementById('btn-pause').textContent = paused ? '▶️ Reanudar' : '⏸️ Pausar';
+            document.getElementById('btn-pause').classList.toggle('active', paused);
+        });
+
+        document.getElementById('btn-reset').addEventListener('click', () => {
+            setMoonAngle(0);
+        });
+
+        document.getElementById('btn-new').addEventListener('click', () => {
+            const a = Math.round(moonAngle / (2 * Math.PI)) * 2 * Math.PI;
+            setMoonAngle(a);
+        });
+        document.getElementById('btn-q1').addEventListener('click', () => {
+            setMoonAngle(Math.PI / 2);
+        });
+        document.getElementById('btn-full').addEventListener('click', () => {
+            setMoonAngle(Math.PI);
+        });
+        document.getElementById('btn-q3').addEventListener('click', () => {
+            setMoonAngle(3 * Math.PI / 2);
+        });
+
+        document.getElementById('btn-orbit').addEventListener('click', () => {
+            showOrbit = !showOrbit;
+            moonOrbitLine.visible = showOrbit;
+            allMarkers.forEach(m => m.visible = showOrbit);
+            earthOrbitLine.visible = showOrbit;
+            document.getElementById('btn-orbit').classList.toggle('active', showOrbit);
+        });
+
+        document.getElementById('btn-axes').addEventListener('click', () => {
+            showLabels = !showLabels;
+            Object.values(labels).forEach(l => l.visible = showLabels);
+            sunEarthLineMat.opacity = showLabels ? 0.45 : 0.18;
+            document.getElementById('btn-axes').classList.toggle('active', showLabels);
+        });
+
+        document.getElementById('view-select').addEventListener('change', e => {
+            viewMode = e.target.value;
+            applyView();
+        });
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (!paused) {
+                moonAngle += 0.004 * speedMultiplier * 0.05;
+            }
+
+            const x = MOON_DIST * Math.cos(moonAngle);
+            const y = MOON_DIST * Math.sin(moonAngle);
+            moon.position.set(x, y, 0);
+
+            if (!paused) earth.rotation.y += 0.003 * 0.05;
+
+            if (viewMode === 'earth') {
+                const moonWorld = new THREE.Vector3();
+                moon.getWorldPosition(moonWorld);
+                camera.position.set(0, 2, 0);
+                camera.lookAt(moonWorld);
+            }
+
+            updateInfoPanel();
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        setMoonAngle(0);
+        animate();
+    </script>
+</body>
+</html>
 
 

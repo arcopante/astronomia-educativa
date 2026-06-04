@@ -296,6 +296,12 @@
                     planet.add(moon);
                     planet.userData.moons = planet.userData.moons || [];
                     planet.userData.moons.push(moon);
+
+                    const moonLabel = createTextSprite(moonData.name, '#cccccc', 14);
+                    moonLabel.position.set(0, moonData.radius + 2, 0);
+                    moonLabel.visible = false;
+                    moon.add(moonLabel);
+                    moon.userData.label = moonLabel;
                 });
             }
 
@@ -340,6 +346,13 @@
         document.getElementById('btn-labels').addEventListener('click', () => {
             showLabels = !showLabels;
             Object.values(planetLabels).forEach(l => l.visible = showLabels);
+            Object.values(planets).forEach(p => {
+                if (p.userData.moons) {
+                    p.userData.moons.forEach(m => {
+                        if (m.userData.label) m.userData.label.visible = showLabels;
+                    });
+                }
+            });
             document.getElementById('btn-labels').classList.toggle('active', showLabels);
         });
 
